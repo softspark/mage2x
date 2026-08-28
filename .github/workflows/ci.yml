@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: ShellCheck
-        run: shellcheck tests/run.sh
+        run: shellcheck tests/run.sh scripts/bundle.sh
 
   typecheck:
     runs-on: ubuntu-latest
@@ -77,6 +77,30 @@ jobs:
           fi
           grep -q 'ignore-scripts=true' .npmrc \
             || { echo "::error::.npmrc must set ignore-scripts=true"; exit 1; }
+
+  bundle-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: '22' }
+      - name: Install zsh
+        run: sudo apt-get update && sudo apt-get install -y zsh
+      # A generated artifact that nobody regenerates is the quiet failure mode:
+      # the sources move, dist/ does not, and the pinned copy shipped to S3 is
+      # silently a release behind.
+      - name: dist/ matches the sources
+        run: ./scripts/bundle.sh --check
+      - name: the bundle is a working plugin on its own
+        run: |
+          zsh -n dist/mage2x.plugin.zsh
+          zsh -c 'source ./dist/mage2x.plugin.zsh
+                  (( $+functions[m2x] )) || { print "m2x missing"; exit 1 }
+                  for rt in docker podman kube; do
+                    for v in available context list exec shell logs restart forward; do
+                      (( $+functions[_m2x_${rt}_${v}] )) || { print "missing _m2x_${rt}_${v}"; exit 1 }
+                    done
+                  done'
 
   adapter-contract:
     runs-on: ubuntu-latest

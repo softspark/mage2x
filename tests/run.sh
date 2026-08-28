@@ -268,6 +268,52 @@ out=$(zsh -c "source '$REPO/mage2x.plugin.zsh'
 if [ "$out" = "fallback|bare" ]; then ok "a bare pod name falls back to the namespace"; else bad "namespace fallback failed" "got $out"; fi
 
 # --------------------------------------------------------------------------
+head_ "single-file build"
+
+# The bundle is what reaches hosts that can only carry one object, so it is
+# tested as a plugin in its own right rather than assumed equivalent.
+if "$REPO/scripts/bundle.sh" --check >/dev/null 2>&1; then
+  ok "dist/ matches the sources"
+else
+  bad "dist/ is out of date - run scripts/bundle.sh"
+fi
+
+if [ -f "$REPO/dist/mage2x.plugin.zsh" ]; then
+  if zsh -n "$REPO/dist/mage2x.plugin.zsh" 2>/dev/null; then
+    ok "the bundle parses"
+  else
+    bad "the bundle has a syntax error"
+  fi
+
+  # It must define everything, having inlined what the checkout would source.
+  missing=$(zsh -c "source '$REPO/dist/mage2x.plugin.zsh'
+    (( \$+functions[m2x] )) || print m2x
+    for rt in docker podman kube; do
+      for v in available context list exec shell logs restart forward; do
+        (( \$+functions[_m2x_\${rt}_\${v}] )) || print \"_m2x_\${rt}_\${v}\"
+      done
+    done" 2>&1)
+  if [ -z "$missing" ]; then
+    ok "the bundle defines the whole surface on its own"
+  else
+    bad "the bundle is missing functions" "$missing"
+  fi
+
+  # And it must behave the same: same refusal on an ambiguous target.
+  out=$(zsh -c "
+    source '$SANDBOX/fake.zsh'
+    source '$REPO/dist/mage2x.plugin.zsh'
+    M2X_RUNTIME=fake
+    m2x ph exec true" 2>&1)
+  case "$out" in
+    *ambiguous*) ok "the bundle refuses an ambiguous target too" ;;
+    *) bad "the bundle behaves differently from the checkout" "$out" ;;
+  esac
+else
+  bad "dist/mage2x.plugin.zsh was never built"
+fi
+
+# --------------------------------------------------------------------------
 head_ "syntax"
 
 for f in mage2x.plugin.zsh _mage2x lib/core.zsh lib/rt-cli.zsh lib/rt-kube.zsh lib/catalog.zsh; do

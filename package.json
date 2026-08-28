@@ -1,6 +1,6 @@
 {
   "name": "@softspark/mage2x",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Run Magento and shell commands inside a container workload over docker, podman or kubectl. Refuses ambiguous targets instead of guessing, and asks before destructive operations on a production context.",
   "keywords": [
     "zsh",
@@ -33,6 +33,7 @@
   "files": [
     "bin/",
     "lib/",
+    "dist/",
     "mage2x.plugin.zsh",
     "_mage2x",
     "README.md",
@@ -44,8 +45,9 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "lint": "shellcheck tests/run.sh",
+    "lint": "shellcheck tests/run.sh scripts/bundle.sh",
     "typecheck": "node --check bin/mage2x-install.mjs",
-    "test": "./tests/run.sh"
+    "test": "./tests/run.sh",
+    "bundle": "./scripts/bundle.sh"
   }
 }

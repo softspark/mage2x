@@ -15,6 +15,7 @@ ambiguous targets, guards destructive verbs on production.
 npm run lint        # ShellCheck
 npm run typecheck   # node --check on the installer
 npm test            # full suite, no docker or cluster required
+npm run bundle      # regenerate dist/ after any change under lib/ or the plugin
 ```
 
 ## Key Conventions
@@ -35,6 +36,8 @@ npm test            # full suite, no docker or cluster required
   stderr, or the message vanishes into the command substitution
 - Escape parens in parameter substitution: `${line#plugins=\(}`. Unescaped they
   are a glob pattern and the substitution dies with `bad pattern`
+- `dist/` is generated and committed. Regenerate it in the same commit as any
+  source change, or the drift gate fails — and downstream ships a stale copy
 - A destructive step and its bookkeeping must not be able to half-succeed: the
   plugin removal ran, the `.zshrc` rewrite crashed, and the shell was left
   pointing at nothing

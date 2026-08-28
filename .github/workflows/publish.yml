@@ -35,7 +35,8 @@ jobs:
 
       - name: Quality gates
         run: |
-          shellcheck tests/run.sh
+          shellcheck tests/run.sh scripts/bundle.sh
+          ./scripts/bundle.sh --check
           node --check bin/mage2x-install.mjs
           for f in mage2x.plugin.zsh _mage2x lib/*.zsh; do zsh -n "$f"; done
           ./tests/run.sh
@@ -47,7 +48,8 @@ jobs:
           echo "Tarball entries:"; cat /tmp/pack-entries.txt
           missing=0
           for f in mage2x.plugin.zsh _mage2x lib/core.zsh lib/rt-cli.zsh lib/rt-kube.zsh \
-                   lib/catalog.zsh bin/mage2x-install.mjs LICENSE NOTICE; do
+                   lib/catalog.zsh bin/mage2x-install.mjs dist/mage2x.plugin.zsh \
+                   LICENSE NOTICE; do
             grep -qx "$f" /tmp/pack-entries.txt || { echo "::error::missing from tarball: $f"; missing=1; }
           done
           # npm ships LICENSE on its own but never NOTICE; Apache-2.0 §4(d) makes

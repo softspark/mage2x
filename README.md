@@ -7,14 +7,14 @@
 [![npm](https://img.shields.io/npm/v/@softspark/mage2x)](https://www.npmjs.com/package/@softspark/mage2x)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-## What's New in v1.1.0
+## What's New in v1.2.0
 
-- **`m2d`, `m2p`, `m2k`** — one letter per engine: docker, podman, kubectl
-- **`m2x migrate`** — retire a superseded plugin and point `~/.zshrc` here
-- **Fixed:** `plugins=(...)` was never rewritten — the parens were read as a glob
+- **`dist/mage2x.plugin.zsh`** — a single-file build for delivery paths that can
+  carry only one object, with a CI gate that fails when it lags the sources
 
-Earlier in 1.0.0: three runtimes behind one verb set, refusal on ambiguous
-targets, and the production guard. See [CHANGELOG.md](CHANGELOG.md).
+Earlier: `m2d`/`m2p`/`m2k` per engine and `m2x migrate` in 1.1.0; three runtimes,
+refusal on ambiguous targets and the production guard in 1.0.0. See
+[CHANGELOG.md](CHANGELOG.md).
 
 ## Table of Contents
 
@@ -63,6 +63,20 @@ git clone https://github.com/softspark/mage2x.git \
 Add `mage2x` to `plugins=(...)` in `~/.zshrc` and reload the shell. This is the
 path configuration management should use: the plugin is pure zsh and needs no
 Node, which matters on servers that have neither Node nor `make`.
+
+### As a single file
+
+Where only one object can be delivered — an S3 asset, a configuration-management
+template — use the generated build:
+
+```bash
+curl -fsSL -o mage2x.plugin.zsh \
+  https://raw.githubusercontent.com/softspark/mage2x/v1.2.0/dist/mage2x.plugin.zsh
+```
+
+Pin the tag rather than tracking a branch: the point of shipping a file is that
+the version is decided at deploy time, not at boot time. `dist/` is committed and
+CI fails when it lags the sources.
 
 ### From npm
 
@@ -194,6 +208,9 @@ lib/
   catalog.zsh         Magento shortcuts, layered over the adapters
 bin/
   mage2x-install.mjs  npm installer (Node, no dependencies)
+scripts/bundle.sh     builds dist/; --check is the CI drift gate
+dist/
+  mage2x.plugin.zsh   generated single-file build, committed
 tests/run.sh          suite, runs against a fake adapter — no engine required
 ```
 
