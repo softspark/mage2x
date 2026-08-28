@@ -7,6 +7,30 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.1.0 -- One letter per engine (2026-08-28)
+
+### Added
+- **`m2d`, `m2p`, `m2k`** pin the runtime to docker, podman and kubectl. The
+  engine is chosen by which letter you type rather than by a flag. Auto-detection
+  is right when only one engine is present; on a workstation with docker running
+  and a kubeconfig loaded it is a coin toss, and a coin toss is the wrong thing
+  to have before `restart`. Completion follows the pin rather than detection.
+- **`m2x migrate`** retires a superseded plugin of the same purpose: it removes
+  the checkout, rewrites `plugins=(...)` to name `mage2x` instead, and writes a
+  `~/.zshrc` backup first. A plugin directory that is neither a checkout nor a
+  symlink is left alone and reported — it may hold edits that exist nowhere else.
+
+### Fixed
+- **`plugins=(...)` was never rewritten.** The parentheses in the parameter
+  substitution were read as a glob pattern, so the rewrite died with
+  `bad pattern` *after* the plugin directory had already been removed — the
+  worst possible half-state. Caught by a test, not by review.
+- **A pinned runtime no longer claims a search it did not make.** When
+  `M2X_RUNTIME` is set and unusable, the specific reason is reported without the
+  generic "tried docker, podman, kubectl" line underneath it.
+
+---
+
 ## v1.0.0 -- Initial release (2026-08-28)
 
 One command across docker, podman and kubectl: `x` is whichever of them is in

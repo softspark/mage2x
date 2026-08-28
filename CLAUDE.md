@@ -33,10 +33,15 @@ npm test            # full suite, no docker or cluster required
   `${x:l}` instead, or the pattern silently never matches
 - A function whose stdout is its return value must send every diagnostic to
   stderr, or the message vanishes into the command substitution
+- Escape parens in parameter substitution: `${line#plugins=\(}`. Unescaped they
+  are a glob pattern and the substitution dies with `bad pattern`
+- A destructive step and its bookkeeping must not be able to half-succeed: the
+  plugin removal ran, the `.zshrc` rewrite crashed, and the shell was left
+  pointing at nothing
 
 ## Layout
 ```
-mage2x.plugin.zsh   entry point, verb dispatch, m2d alias
+mage2x.plugin.zsh   entry point, verb dispatch, migrate, m2d/m2p/m2k
 _mage2x             completion
 lib/core.zsh        runtime selection, resolution, production guard
 lib/rt-cli.zsh      docker + podman

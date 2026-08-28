@@ -27,6 +27,7 @@ _m2x_usage() {
   print -- "mage2x - run commands in a container workload, whatever runs it
 
   m2x [--runtime docker|podman|kube] [<target> [<verb> [args...]]]
+  m2d / m2p / m2k       the same, pinned to docker / podman / kubectl
 
   no arguments          list targets in the detected runtime
   <target> shell        interactive shell (\$M2X_APP_USER, default www-data)
@@ -36,6 +37,7 @@ _m2x_usage() {
   <target> restart      restart; on production this asks first
   <target> forward L:R  port-forward (kubectl only)
   <target> context      show which runtime and context would be used
+  migrate               retire a superseded plugin and point ~/.zshrc here
 
   magento shortcuts     ${(j:, :)${(ko)M2X_MAGE_SHORTCUTS}}
   <target> mage <cmd>   any other magento CLI command
@@ -49,6 +51,63 @@ environment
   M2X_PROD_PATTERNS     regex marking a context as production
   M2X_PROD=1            treat the current context as production
   M2X_ASSUME_YES=1      skip the production prompt (for automation)"
+}
+
+# Retire a superseded plugin of the same purpose and point the shell here.
+# Destructive, so it names every step and refuses anything it did not create.
+_m2x_migrate() {
+  emulate -L zsh
+  local custom="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+  local zshrc="$HOME/.zshrc" found=0 old dir line new tmp
+  local -a legacy=(mage2docker) names keep
+
+  for old in $legacy; do
+    dir="$custom/plugins/$old"
+    [[ -e "$dir" ]] || continue
+    found=1
+    if [[ -L "$dir" ]]; then
+      print -P "%F{yellow}~%f $old is a symlink - unlinking"
+      command rm -f "$dir" && print -P "  %F{green}v%f ${dir/#$HOME/~}"
+    elif [[ -d "$dir/.git" ]]; then
+      print -P "%F{yellow}~%f $old is a checkout at $(command git -C $dir rev-parse --short HEAD 2>/dev/null) - removing"
+      command rm -rf "$dir" && print -P "  %F{green}v%f ${dir/#$HOME/~}"
+    else
+      # Neither a checkout nor a link: it may hold edits that exist nowhere else.
+      print -P "%F{red}x%f $old is a plain directory, not a checkout - leaving it alone"
+      print -P "  %F{8}move it aside yourself: ${dir/#$HOME/~}%f"
+    fi
+  done
+
+  if [[ -f "$zshrc" ]]; then
+    line=$(grep -m1 '^plugins=(' "$zshrc")
+    if [[ -n "$line" ]]; then
+      # The parens must be escaped: unescaped, zsh reads them as a glob pattern
+      # and the substitution dies with "bad pattern", leaving ~/.zshrc untouched
+      # while the plugin directory has already been removed.
+      names=(${(s: :)${${line#plugins=\(}%\)}})
+      keep=()
+      for old in $names; do
+        (( ${legacy[(I)$old]} )) && { found=1; continue }
+        keep+=($old)
+      done
+      (( ${keep[(I)mage2x]} )) || keep+=(mage2x)
+      new="plugins=(${(j: :)keep})"
+      if [[ "$new" != "$line" ]]; then
+        command cp "$zshrc" "$zshrc.bak-mage2x"
+        tmp=$(mktemp)
+        sed "s|^plugins=(.*)|$new|" "$zshrc" > "$tmp" && command mv "$tmp" "$zshrc"
+        print -P "%F{green}v%f ~/.zshrc: $new"
+        print -P "  %F{8}backup: ~/.zshrc.bak-mage2x%f"
+      else
+        print -P "%F{8}=%f ~/.zshrc already lists mage2x and nothing superseded"
+      fi
+    else
+      print -P "%F{yellow}!%f no plugins=(...) line in ~/.zshrc - add mage2x yourself"
+    fi
+  fi
+
+  (( found )) || print -P "%F{8}=%f nothing to migrate"
+  print -P "\nreload the shell:  exec zsh"
 }
 
 m2x() {
@@ -66,9 +125,15 @@ m2x() {
   done
   set -- "${rest[@]}"
 
+  if [[ "${1:-}" == migrate ]]; then _m2x_migrate; return $?; fi
+
   [[ -n "$rt" ]] && M2X_RUNTIME="$rt"
   rt=$(_m2x_detect_runtime) || {
-    _m2x_err "no usable container runtime found (tried docker, podman, kubectl)"
+    # A pinned runtime has already reported precisely why it is unusable.
+    # Adding "tried docker, podman, kubectl" on top would claim a search that
+    # never happened.
+    [[ -z "$M2X_RUNTIME" ]] && \
+      _m2x_err "no usable container runtime found (tried docker, podman, kubectl)"
     return 1
   }
 
@@ -113,5 +178,10 @@ m2x() {
   esac
 }
 
-# Short alias. Kept because it is what fingers already type.
-m2d() { m2x "$@" }
+# One alias per runtime, so the engine is chosen by which letter you type rather
+# than by a flag. Auto-detection is right when only one engine is present; on a
+# workstation with docker running and a kubeconfig loaded it is a coin toss, and
+# a coin toss is not what anyone wants before `restart`.
+m2d() { m2x --runtime docker "$@" }
+m2p() { m2x --runtime podman "$@" }
+m2k() { m2x --runtime kube   "$@" }

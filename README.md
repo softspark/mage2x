@@ -7,12 +7,14 @@
 [![npm](https://img.shields.io/npm/v/@softspark/mage2x)](https://www.npmjs.com/package/@softspark/mage2x)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-## What's New in v1.0.0
+## What's New in v1.1.0
 
-- **Three runtimes, one command** — docker, podman and kubectl behind the same verbs
-- **Ambiguous targets are refused**, with the candidates listed, instead of guessed
-- **Production guard** on destructive verbs only, confirmed by typing the target name
-- **`m2d` works as a short alias**, for fingers that prefer it
+- **`m2d`, `m2p`, `m2k`** — one letter per engine: docker, podman, kubectl
+- **`m2x migrate`** — retire a superseded plugin and point `~/.zshrc` here
+- **Fixed:** `plugins=(...)` was never rewritten — the parens were read as a glob
+
+Earlier in 1.0.0: three runtimes behind one verb set, refusal on ambiguous
+targets, and the production guard. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Table of Contents
 
@@ -125,8 +127,20 @@ x 'ph' is ambiguous - refusing to guess
 | `restart` | restart; guarded on production |
 | `forward L:R` | port-forward (kubectl only) |
 | `context` | show the runtime and context in use |
+| `migrate` | retire a superseded plugin, point `~/.zshrc` here |
 
-`m2d` is a short alias of `m2x` and takes the same arguments.
+### Pinning the engine
+
+| Command | Runtime |
+|---|---|
+| `m2x` | detected |
+| `m2d` | docker |
+| `m2p` | podman |
+| `m2k` | kubectl |
+
+All four take the same arguments. Auto-detection is right when only one engine
+is present; with docker running and a kubeconfig loaded it is a coin toss, so
+say which one you mean before anything destructive.
 
 Magento shortcuts: `cache`, `cache-flush`, `reindex`, `upgrade`, `di`, `deploy`,
 `mode`, `cron`, `maint-on`, `maint-off`. Anything else goes through

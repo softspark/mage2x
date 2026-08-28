@@ -160,13 +160,97 @@ case "$out" in *production*) ok "context reports production status" ;;
                *) bad "context did not report production" "$out" ;; esac
 
 # --------------------------------------------------------------------------
-head_ "m2d alias"
+head_ "runtime aliases"
 
-out=$(run 'm2d solo exec echo hi')
+# Each alias pins its engine, so on a host without that engine it must fail
+# rather than quietly using whichever one happens to be present.
+# The fake adapter knows a target called "solo"; docker, podman and kubectl do
+# not. So an alias that reaches the fake is not pinning anything, whether or not
+# the real engine happens to be installed on this machine.
+for alias_name in m2d m2p m2k; do
+  out=$(zsh -c "
+    source '$SANDBOX/fake.zsh'
+    source '$REPO/mage2x.plugin.zsh'
+    $alias_name solo exec echo hi" 2>&1)
+  case "$out" in
+    *"EXEC t=solo"*) bad "$alias_name fell through to the ambient runtime" "$out" ;;
+    *) ok "$alias_name does not use the ambient runtime" ;;
+  esac
+done
+
+# The pin must beat the ambient setting, or the alias means nothing.
+out=$(zsh -c "
+  source '$SANDBOX/fake.zsh'
+  source '$REPO/mage2x.plugin.zsh'
+  M2X_RUNTIME=fake
+  m2d solo exec echo hi" 2>&1)
 case "$out" in
-  *"t=solo"*) ok "m2d forwards to m2x" ;;
-  *) bad "m2d alias broken" "$out" ;;
+  *"t=solo"*) bad "m2d used the ambient runtime instead of docker" ;;
+  *) ok "an alias overrides M2X_RUNTIME" ;;
 esac
+
+head_ "migrate"
+
+MHOME="$SANDBOX/mhome"
+mkdir -p "$MHOME/omz/plugins"
+
+out=$(zsh -c "
+  source '$REPO/mage2x.plugin.zsh'
+  ZSH_CUSTOM='$MHOME/omz' HOME='$MHOME' m2x migrate" 2>&1)
+case "$out" in
+  *"nothing to migrate"*) ok "migrate is a no-op with nothing to retire" ;;
+  *) bad "migrate misbehaved on a clean host" "$out" ;;
+esac
+
+# A plain directory may hold edits that exist nowhere else: refuse it.
+mkdir -p "$MHOME/omz/plugins/mage2docker"
+echo local-edit > "$MHOME/omz/plugins/mage2docker/thing.zsh"
+out=$(zsh -c "
+  source '$REPO/mage2x.plugin.zsh'
+  ZSH_CUSTOM='$MHOME/omz' HOME='$MHOME' m2x migrate" 2>&1)
+case "$out" in
+  *"plain directory"*) ok "migrate refuses a directory it did not create" ;;
+  *) bad "migrate touched a plain directory" "$out" ;;
+esac
+if [ -f "$MHOME/omz/plugins/mage2docker/thing.zsh" ]; then
+  ok "the refused directory is intact"
+else
+  bad "migrate deleted local work"
+fi
+
+# A checkout is replaceable, so it goes.
+rm -rf "$MHOME/omz/plugins/mage2docker"
+mkdir -p "$MHOME/omz/plugins/mage2docker"
+git -C "$MHOME/omz/plugins/mage2docker" init -q
+git -C "$MHOME/omz/plugins/mage2docker" -c user.email=t@example.test -c user.name=t \
+    commit -q --allow-empty -m x --no-verify 2>/dev/null
+out=$(zsh -c "
+  source '$REPO/mage2x.plugin.zsh'
+  ZSH_CUSTOM='$MHOME/omz' HOME='$MHOME' m2x migrate" 2>&1)
+if [ -d "$MHOME/omz/plugins/mage2docker" ]; then
+  bad "migrate left a checkout behind" "$out"
+else
+  ok "migrate removes a checkout"
+fi
+
+# And it rewrites plugins=(...) without losing the others.
+printf 'plugins=(git mage2docker docker)\n' > "$MHOME/.zshrc"
+mkdir -p "$MHOME/omz/plugins/mage2docker"
+git -C "$MHOME/omz/plugins/mage2docker" init -q
+out=$(zsh -c "
+  source '$REPO/mage2x.plugin.zsh'
+  ZSH_CUSTOM='$MHOME/omz' HOME='$MHOME' m2x migrate" 2>&1)
+line=$(grep '^plugins=' "$MHOME/.zshrc")
+case "$line" in
+  *mage2docker*) bad "the retired plugin is still in plugins=()" "$line" ;;
+  *mage2x*git*|*git*mage2x*) ok "plugins=() keeps the others and gains mage2x" ;;
+  *) bad "plugins=() rewritten wrongly" "$line" ;;
+esac
+if [ -f "$MHOME/.zshrc.bak-mage2x" ]; then
+  ok "migrate writes a backup before editing ~/.zshrc"
+else
+  bad "no backup written"
+fi
 
 # --------------------------------------------------------------------------
 head_ "kubectl target parsing"
