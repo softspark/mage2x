@@ -1,0 +1,102 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: ShellCheck
+        run: shellcheck tests/run.sh
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: '22' }
+      - name: Parse the installer
+        run: node --check bin/mage2x-install.mjs
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: '22' }
+      - name: Install zsh
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y zsh
+      # The suite uses a fake adapter on purpose: no engine is installed here,
+      # and the logic worth testing sits above the adapters anyway.
+      - name: Run the suite
+        run: ./tests/run.sh
+
+  required-files:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check required files
+        run: |
+          for f in LICENSE NOTICE CHANGELOG.md SECURITY.md CODE_OF_CONDUCT.md README.md \
+                   .npmrc .github/CODEOWNERS .github/FUNDING.yml .github/dependabot.yml \
+                   kb/procedures/sop-pre-commit.md \
+                   kb/procedures/sop-release.md \
+                   kb/procedures/sop-post-release-testing.md; do
+            test -f "$f" || { echo "Missing: $f"; exit 1; }
+          done
+      - name: Version is in sync
+        run: |
+          PKG=$(node -p "require('./package.json').version")
+          grep -q "## v${PKG} " CHANGELOG.md || { echo "CHANGELOG has no entry for v${PKG}"; exit 1; }
+      - name: Supply-chain gates match the target registry
+        run: |
+          # Strip comments: both publishing phases are described in the
+          # workflow's own prose, and a raw grep matches the comment.
+          CODE=$(sed 's/#.*//' .github/workflows/publish.yml)
+          if printf '%s' "$CODE" | grep -q 'registry-url:.*registry\.npmjs\.org'; then
+            printf '%s' "$CODE" | grep -q -- '--provenance' \
+              || { echo "::error::public publish without --provenance"; exit 1; }
+            printf '%s' "$CODE" | grep -q 'id-token: write' \
+              || { echo "::error::--provenance needs id-token: write"; exit 1; }
+          elif printf '%s' "$CODE" | grep -q 'registry-url:.*npm\.pkg\.github\.com'; then
+            printf '%s' "$CODE" | grep -q -- '--provenance' \
+              && { echo "::error::--provenance cannot work on GitHub Packages"; exit 1; }
+          else
+            echo "::error::publish.yml declares no recognised registry-url"; exit 1
+          fi
+          grep -q 'ignore-scripts=true' .npmrc \
+            || { echo "::error::.npmrc must set ignore-scripts=true"; exit 1; }
+
+  adapter-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install zsh
+        run: sudo apt-get update && sudo apt-get install -y zsh
+      # Every adapter must implement the whole verb set. A half-written runtime
+      # fails at the moment someone reaches for the missing verb, in production,
+      # rather than here.
+      - name: Every runtime implements the full contract
+        run: |
+          zsh -c '
+            source ./mage2x.plugin.zsh
+            verbs=(available context list exec shell logs restart forward)
+            missing=0
+            for rt in docker podman kube; do
+              for v in $verbs; do
+                (( $+functions[_m2x_${rt}_${v}] )) || { print "::error::missing _m2x_${rt}_${v}"; missing=1 }
+              done
+            done
+            exit $missing
+          '

@@ -1,0 +1,17 @@
+.DS_Store
+node_modules/
+*.log
+coverage/
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+settings.local.json
+.idea/
+/.claude/
+/.augment/
+/.cursor/
+/.agents/
+/.codex/
+.local/

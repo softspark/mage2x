@@ -1,0 +1,12 @@
+tests/
+kb/
+.github/
+.git/
+.claude/
+.idea/
+.DS_Store
+.env*
+!.env.example
+CLAUDE.md
+SECURITY.md
+CODE_OF_CONDUCT.md

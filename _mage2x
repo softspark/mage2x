@@ -1,0 +1,74 @@
+#compdef m2x m2d
+# mage2x - completion over live targets in whichever runtime is detected.
+
+_m2x_comp_runtime() {
+  [[ -n "$M2X_RUNTIME" ]] && { print -r -- "$M2X_RUNTIME"; return }
+  local rt
+  for rt in docker podman kube; do
+    if (( $+functions[_m2x_${rt}_available] )); then
+      _m2x_${rt}_available 2>/dev/null && { print -r -- "$rt"; return }
+    fi
+  done
+}
+
+# Live targets. Completion must never be the thing that hangs a shell, so the
+# call is bounded and a slow or unreachable runtime simply yields nothing.
+_m2x_comp_targets() {
+  local rt
+  rt=$(_m2x_comp_runtime) || return
+  [[ -n "$rt" ]] || return
+  if (( $+commands[timeout] )); then
+    timeout 3 _m2x_${rt}_list 2>/dev/null
+  else
+    _m2x_${rt}_list 2>/dev/null
+  fi
+}
+
+_m2x_comp_verbs() {
+  local -a v
+  v=(
+    'shell:interactive shell as the application user'
+    'root:interactive shell as root'
+    'sh:interactive sh, when bash is absent'
+    'exec:run a command'
+    'logs:container logs'
+    'restart:restart; asks first on production'
+    'forward:port-forward (kubectl only)'
+    'context:show the runtime and context in use'
+  )
+  if (( $+functions[_m2x_catalog_names] )); then
+    local n
+    for n in ${(f)"$(_m2x_catalog_names)"}; do
+      v+=("$n:magento shortcut")
+    done
+  fi
+  _describe -t verbs 'verb' v
+}
+
+_m2x() {
+  _arguments -C \
+    '--runtime[force a container runtime]:runtime:(docker podman kube)' \
+    '(-h --help)'{-h,--help}'[show usage]' \
+    '1:target:->target' \
+    '2:verb:->verb' \
+    '*::arg:->args'
+
+  case $state in
+    target)
+      local -a t
+      t=(${(f)"$(_m2x_comp_targets)"})
+      (( ${#t} )) && _describe -t targets 'target' t
+      _describe -t special 'special' '(context:show the runtime and context in use)'
+      ;;
+    verb) _m2x_comp_verbs ;;
+    args)
+      case ${words[2]} in
+        logs) _arguments '-f[follow]' '--tail[lines]:lines:' ;;
+        forward) _message 'local:remote' ;;
+        exec) _message 'command to run' ;;
+      esac
+      ;;
+  esac
+}
+
+_m2x "$@"
