@@ -19,7 +19,3 @@ limitations under the License.
 This NOTICE covers mage2x itself. The package has no runtime dependencies; the
 installer runs on Node.js and the plugin runs under zsh, driving whichever of
 docker, podman or kubectl is already present. None of those are bundled here.
-
-mage2x succeeds mage2docker by Lukasz Olszewski
-(https://github.com/lukaszolszewski/mage2docker), which was published under the
-Beerware licence. mage2x is an independent implementation; no code was copied.

@@ -2,8 +2,7 @@
 
 ## Overview
 Run commands inside a container workload over docker, podman or kubectl. Refuses
-ambiguous targets, guards destructive verbs on production. Successor to
-mage2docker.
+ambiguous targets, guards destructive verbs on production.
 
 ## Tech Stack
 - **Plugin**: zsh (Oh My Zsh custom plugin), no runtime dependencies
@@ -37,7 +36,7 @@ npm test            # full suite, no docker or cluster required
 
 ## Layout
 ```
-mage2x.plugin.zsh   entry point, verb dispatch, m2d shim
+mage2x.plugin.zsh   entry point, verb dispatch, m2d alias
 _mage2x             completion
 lib/core.zsh        runtime selection, resolution, production guard
 lib/rt-cli.zsh      docker + podman

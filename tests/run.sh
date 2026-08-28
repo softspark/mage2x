@@ -160,16 +160,12 @@ case "$out" in *production*) ok "context reports production status" ;;
                *) bad "context did not report production" "$out" ;; esac
 
 # --------------------------------------------------------------------------
-head_ "mage2docker compatibility"
+head_ "m2d alias"
 
 out=$(run 'm2d solo exec echo hi')
 case "$out" in
-  *"old mage2docker name"*) ok "m2d warns about the rename" ;;
-  *) bad "m2d did not warn" "$out" ;;
-esac
-case "$out" in
-  *"t=solo"*) ok "m2d still runs the command" ;;
-  *) bad "m2d shim broken" "$out" ;;
+  *"t=solo"*) ok "m2d forwards to m2x" ;;
+  *) bad "m2d alias broken" "$out" ;;
 esac
 
 # --------------------------------------------------------------------------

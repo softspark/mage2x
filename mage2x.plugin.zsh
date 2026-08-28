@@ -1,7 +1,7 @@
 # mage2x - run commands in a container workload, whatever runs it.
 #
-# Successor to mage2docker. The name says what changed: `d` was docker, `x` is
-# whichever of docker, podman or kubectl is in front of you.
+# One command across docker, podman and kubectl: `x` is whichever of them is in
+# front of you.
 #
 #   m2x                            list targets in the current runtime
 #   m2x <target> shell             interactive shell
@@ -72,8 +72,8 @@ m2x() {
     return 1
   }
 
-  # No target: list what is reachable. This is also the honest answer to "what
-  # can I even talk to from here", which is most of what m2d was used for.
+  # No target: list what is reachable. This is the honest answer to "what can I
+  # even talk to from here", which is most of what the tool gets used for.
   if (( ! $# )); then
     _m2x_dim "runtime: $rt   context: $(_m2x_${rt}_context)"
     _m2x_${rt}_list
@@ -113,11 +113,5 @@ m2x() {
   esac
 }
 
-# Muscle memory from mage2docker. Warns once per shell, then behaves.
-m2d() {
-  if [[ -z "$_M2X_M2D_WARNED" ]]; then
-    typeset -g _M2X_M2D_WARNED=1
-    _m2x_warn "m2d is the old mage2docker name; use m2x (this shim will be removed)"
-  fi
-  m2x "$@"
-}
+# Short alias. Kept because it is what fingers already type.
+m2d() { m2x "$@" }

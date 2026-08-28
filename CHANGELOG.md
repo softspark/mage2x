@@ -9,8 +9,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## v1.0.0 -- Initial release (2026-08-28)
 
-Successor to `mage2docker`. The name records what changed: `d` was docker,
-`x` is whichever of docker, podman or kubectl is in front of you.
+One command across docker, podman and kubectl: `x` is whichever of them is in
+front of you.
 
 ### Added
 - **Runtime adapters for docker, podman and kubectl** behind one verb set, so a
@@ -29,8 +29,7 @@ Successor to `mage2docker`. The name records what changed: `d` was docker,
   terminal is refused rather than silently run.
 - **Magento command catalogue** (`cache`, `reindex`, `upgrade`, `di`, ...) as a
   thin layer over the adapters, plus `mage` for anything else.
-- **`m2d` compatibility shim** that warns once and then behaves, so existing
-  muscle memory and scripts keep working.
+- **`m2d` as a short alias** of `m2x`, for fingers that prefer it.
 - **Completion** over live targets, bounded by a timeout so a slow or
   unreachable runtime cannot hang a shell.
 - **npm installer** for workstations. Servers clone the repository directly and

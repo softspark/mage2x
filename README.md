@@ -12,7 +12,7 @@
 - **Three runtimes, one command** — docker, podman and kubectl behind the same verbs
 - **Ambiguous targets are refused**, with the candidates listed, instead of guessed
 - **Production guard** on destructive verbs only, confirmed by typing the target name
-- **`m2d` still works** — it warns once about the rename, then behaves
+- **`m2d` works as a short alias**, for fingers that prefer it
 
 ## Table of Contents
 
@@ -24,7 +24,6 @@
 - [Production safety](#production-safety)
 - [Configuration](#configuration)
 - [Architecture](#architecture)
-- [Relationship to mage2docker](#relationship-to-mage2docker)
 - [Known Limits](#known-limits)
 - [Contributing](#contributing)
 - [Security](#security)
@@ -33,12 +32,12 @@
 
 ## Why
 
-`mage2docker` solved a real problem — reach into a running Magento container
-without remembering the `docker exec` incantation — and its name recorded its
-one limitation. Podman hosts and Kubernetes clusters need the same thing, and
-the answer should not be three tools with three sets of muscle memory.
+Reaching into a running Magento container should not mean remembering a
+different incantation for every engine. Docker hosts, Podman hosts and
+Kubernetes clusters need the same handful of operations, and the answer should
+not be three tools with three sets of muscle memory.
 
-Two things beyond portability are worth the rewrite.
+Two things beyond portability shape the design.
 
 **A fragment that matches more than one workload is an error.** Matching `mysql`
 against a `mysql-backup` sidecar instead of `mysqld` is not hypothetical; it has
@@ -127,6 +126,8 @@ x 'ph' is ambiguous - refusing to guess
 | `forward L:R` | port-forward (kubectl only) |
 | `context` | show the runtime and context in use |
 
+`m2d` is a short alias of `m2x` and takes the same arguments.
+
 Magento shortcuts: `cache`, `cache-flush`, `reindex`, `upgrade`, `di`, `deploy`,
 `mode`, `cron`, `maint-on`, `maint-off`. Anything else goes through
 `m2x <target> mage <command>`. Also available: `magento`, `report`, `applog`,
@@ -185,19 +186,6 @@ tests/run.sh          suite, runs against a fake adapter — no engine required
 Every adapter implements the same verbs: `available`, `context`, `list`, `exec`,
 `shell`, `logs`, `restart`, `forward`. Adding a runtime touches one file and no
 command; adding a command touches the catalogue and no runtime.
-
-## Relationship to mage2docker
-
-`mage2x` succeeds [mage2docker](https://github.com/lukaszolszewski/mage2docker).
-It is an independent implementation — no code was copied — and it keeps the
-ergonomics that made the original worth using.
-
-`m2d` remains available as a shim. It warns once per shell and then forwards to
-`m2x`, so existing habits and scripts keep working while you migrate.
-
-The verbs were renamed where the old ones only made sense for one runtime:
-`mage-cache` became `cache`, `mage-upgrade` became `upgrade`, `bash` and
-`bash-www` collapsed into `root` and `shell`.
 
 ## Known Limits
 
