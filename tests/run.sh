@@ -123,6 +123,42 @@ case "$out" in
   *) bad "staging context was treated as production" "$out" ;;
 esac
 
+# A guard that cannot tell destructive from safe must stop, not wave everything
+# through. Emptying the list used to silently disable production protection.
+out=$(run 'FAKE_CONTEXT=k8s:acme-production; _M2X_DESTRUCTIVE=(); m2x solo restart')
+case "$out" in
+  *"cannot run"*) ok "an emptied destructive list refuses instead of executing" ;;
+  *) bad "an emptied destructive list let a production restart through" "$out" ;;
+esac
+
+out=$(run 'FAKE_CONTEXT=k8s:acme-production; _M2X_DESTRUCTIVE=oops; m2x solo restart')
+case "$out" in
+  *"cannot run"*) ok "a non-array destructive list refuses too" ;;
+  *) bad "a scalar destructive list was accepted" "$out" ;;
+esac
+
+# --------------------------------------------------------------------------
+head_ "parameter namespace"
+
+# zsh offers parameter names in command position, because `NAME=value cmd` is
+# legal there. So everything the plugin leaves in M2X_* is advertised by TAB as
+# though it were configuration. Only the documented knobs belong there; an
+# internal listed alongside them invites someone to set it.
+expected="M2X_APP_USER M2X_ASSUME_YES M2X_KUBE_NS M2X_MAGENTO_BIN M2X_PROD_PATTERNS M2X_RUNTIME"
+# shellcheck disable=SC2016  # $-expansion belongs to the inner zsh, not here
+actual=$(run 'print -l ${(ko)parameters[(I)M2X_*]}' | tr '\n' ' ' | sed 's/ *$//')
+if [ "$actual" = "$expected" ]; then
+  ok "M2X_* holds the documented knobs and nothing else"
+else
+  bad "the public namespace drifted from the README" "got: $actual"
+fi
+
+# Every knob above is in the README table, and every row of that table is a knob.
+for k in $expected; do
+  grep -q "\`$k\`" "$REPO/README.md" || bad "$k is exposed but not in the README" ""
+done
+ok "every exposed knob is documented"
+
 # --------------------------------------------------------------------------
 head_ "catalogue"
 

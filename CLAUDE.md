@@ -40,6 +40,10 @@ npm run bundle      # regenerate dist/ after any change under lib/ or the plugin
   string is split on whitespace, so every word of every description becomes its
   own candidate — and nothing here catches it: `zsh -n` passes, and completion
   is the one surface the suite cannot drive. Grep for the shape instead
+- **`M2X_*` is the public namespace and nothing else may live there.** zsh
+  offers parameter names in command position, so a stray internal is advertised
+  by TAB as configuration. Internals are `_M2X_*`; a test pins the public set to
+  the README table in both directions
 - `dist/` is generated and committed. Regenerate it in the same commit as any
   source change, or the drift gate fails — and downstream ships a stale copy
 - A destructive step and its bookkeeping must not be able to half-succeed: the

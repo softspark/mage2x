@@ -7,6 +7,29 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.3.0 -- The production guard can no longer protect nothing (2026-09-02)
+
+### Fixed
+- **An emptied `M2X_DESTRUCTIVE` silently disabled the production guard.** The
+  check read "no verb is destructive" and waved a `restart` on a production
+  cluster straight through, with no warning and no error. The guard now refuses
+  every command when its own list is missing or is not an array: a broken load
+  is a broken load, not a permissive configuration.
+
+### Changed
+- **Internal parameters left the `M2X_*` namespace.** zsh offers parameter names
+  in command position -- `NAME=value cmd` is legal there -- so everything left in
+  `M2X_*` is advertised by TAB as though it were configuration. `M2X_DESTRUCTIVE`,
+  `M2X_MAGE_SHORTCUTS` and `MAGE2X_SRC` were internals sitting among the six
+  documented knobs, inviting exactly the edit that disabled the guard. They are
+  now `_M2X_DESTRUCTIVE`, `_M2X_MAGE_SHORTCUTS` and `_MAGE2X_SRC`. None was
+  documented; nothing supported changes.
+
+A test now pins the public namespace to the six knobs in the README, in both
+directions.
+
+---
+
 ## v1.2.2 -- The first argument position lists containers (2026-09-02)
 
 ### Changed
