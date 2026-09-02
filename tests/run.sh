@@ -281,16 +281,26 @@ else
   ok "_describe is always given an array name"
 fi
 
-# Each entry must be one quoted array element holding a whole "value:description".
-# Driving the completion system in a test proves more about the harness than the
-# code, so assert the shape of the source instead.
-entries=$(sed -n '/^      special=($/,/^      )$/p' "$REPO/_mage2x" | sed '1d;$d')
-count=$(printf '%s\n' "$entries" | grep -c "^        '[^ ]*:.* .*'$" || true)
-if [ "$count" -eq 2 ]; then
-  ok "special entries are whole quoted descriptions"
+# The first argument position lists containers, nothing else. `context` and
+# `migrate` are valid there, but offering them puts two lines of prose above the
+# container names on every TAB; --help is where a command is discovered.
+target_block=$(sed -n '/^    target)$/,/^      ;;$/p' "$REPO/_mage2x")
+n=$(printf '%s\n' "$target_block" | grep -c '_describe' || true)
+if [ "$n" -eq 1 ] && printf '%s\n' "$target_block" | grep -q "_describe -t targets"; then
+  ok "position 1 completes targets and nothing else"
 else
-  bad "special entries are malformed" "$entries"
+  bad "position 1 offers something other than targets" "$target_block"
 fi
+
+# Dropping them from completion only holds if --help still carries them.
+help_out=$(run 'm2x --help')
+for cmd in context migrate; do
+  if printf '%s\n' "$help_out" | grep -qE "^  $cmd +[a-z]"; then
+    ok "--help documents '$cmd'"
+  else
+    bad "--help does not document '$cmd'" "$(printf '%s\n' "$help_out" | grep -n "$cmd" || echo 'absent')"
+  fi
+done
 
 # --------------------------------------------------------------------------
 head_ "single-file build"

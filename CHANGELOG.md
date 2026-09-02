@@ -7,6 +7,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.2.2 -- The first argument position lists containers (2026-09-02)
+
+### Changed
+- **`context` and `migrate` are no longer offered as targets.** Both are valid
+  there, but each carried a description, so every `TAB` put two lines of prose
+  above the container names — and browsing containers is what that position is
+  for. Both remain in `--help`, which is where a command is discovered.
+- `--help` now shows `context` in the bare form people use, rather than only as
+  `<target> context`.
+
+---
+
 ## v1.2.1 -- Completion offered words, not targets (2026-08-28)
 
 ### Fixed
