@@ -36,6 +36,10 @@ npm run bundle      # regenerate dist/ after any change under lib/ or the plugin
   stderr, or the message vanishes into the command substitution
 - Escape parens in parameter substitution: `${line#plugins=\(}`. Unescaped they
   are a glob pattern and the substitution dies with `bad pattern`
+- `_describe` takes the NAME of an array, never a literal. A parenthesised
+  string is split on whitespace, so every word of every description becomes its
+  own candidate — and nothing here catches it: `zsh -n` passes, and completion
+  is the one surface the suite cannot drive. Grep for the shape instead
 - `dist/` is generated and committed. Regenerate it in the same commit as any
   source change, or the drift gate fails — and downstream ships a stale copy
 - A destructive step and its bookkeeping must not be able to half-succeed: the
