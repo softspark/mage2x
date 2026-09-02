@@ -36,7 +36,7 @@ _m2x_usage() {
   <target> logs [args]  container logs
   <target> restart      restart; on production this asks first
   <target> forward L:R  port-forward (kubectl only)
-  <target> context      show which runtime and context would be used
+  context               show which runtime and context would be used
   migrate               retire a superseded plugin and point ~/.zshrc here
 
   magento shortcuts     ${(j:, :)${(ko)M2X_MAGE_SHORTCUTS}}
