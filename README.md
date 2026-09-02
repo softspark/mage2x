@@ -7,14 +7,13 @@
 [![npm](https://img.shields.io/npm/v/@softspark/mage2x)](https://www.npmjs.com/package/@softspark/mage2x)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-## What's New in v1.2.0
+## What's New in v1.2.1
 
-- **`dist/mage2x.plugin.zsh`** — a single-file build for delivery paths that can
-  carry only one object, with a CI gate that fails when it lags the sources
+- **Fixed:** completion offered the words of its own help text as targets
 
-Earlier: `m2d`/`m2p`/`m2k` per engine and `m2x migrate` in 1.1.0; three runtimes,
-refusal on ambiguous targets and the production guard in 1.0.0. See
-[CHANGELOG.md](CHANGELOG.md).
+Earlier: the single-file `dist/` build in 1.2.0, `m2d`/`m2p`/`m2k` and
+`m2x migrate` in 1.1.0, three runtimes with refusal on ambiguous targets and the
+production guard in 1.0.0. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Table of Contents
 
@@ -71,7 +70,7 @@ template — use the generated build:
 
 ```bash
 curl -fsSL -o mage2x.plugin.zsh \
-  https://raw.githubusercontent.com/softspark/mage2x/v1.2.0/dist/mage2x.plugin.zsh
+  https://raw.githubusercontent.com/softspark/mage2x/v1.2.1/dist/mage2x.plugin.zsh
 ```
 
 Pin the tag rather than tracking a branch: the point of shipping a file is that
