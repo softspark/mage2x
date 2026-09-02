@@ -13,7 +13,7 @@ typeset -g M2X_APP_USER="${M2X_APP_USER:-www-data}"
 typeset -g M2X_MAGENTO_BIN="${M2X_MAGENTO_BIN:-bin/magento}"
 
 # name -> magento CLI argument
-typeset -gA M2X_MAGE_SHORTCUTS=(
+typeset -gA _M2X_MAGE_SHORTCUTS=(
   cache        'cache:clean'
   cache-flush  'cache:flush'
   reindex      'indexer:reindex'
@@ -35,8 +35,8 @@ _m2x_cat_mage() {
 _m2x_catalog_run() {
   local rt="$1" target="$2" verb="$3"; shift 3
 
-  if [[ -n "${M2X_MAGE_SHORTCUTS[$verb]}" ]]; then
-    _m2x_cat_mage "$rt" "$target" ${=M2X_MAGE_SHORTCUTS[$verb]} "$@"
+  if [[ -n "${_M2X_MAGE_SHORTCUTS[$verb]}" ]]; then
+    _m2x_cat_mage "$rt" "$target" ${=_M2X_MAGE_SHORTCUTS[$verb]} "$@"
     return 0
   fi
 
@@ -72,6 +72,6 @@ _m2x_catalog_run() {
 }
 
 _m2x_catalog_names() {
-  print -r -- ${(k)M2X_MAGE_SHORTCUTS}
+  print -r -- ${(k)_M2X_MAGE_SHORTCUTS}
   print -r -- mage magento report applog composer redis-flush varnish-purge varnish-stat
 }

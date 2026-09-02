@@ -20,7 +20,7 @@ typeset -g M2X_ASSUME_YES="${M2X_ASSUME_YES:-}"
 
 # Operations that change or destroy running state. Everything else is read-only
 # and never prompts, however production-looking the context is.
-typeset -ga M2X_DESTRUCTIVE=(restart stop rm kill down scale rollout)
+typeset -ga _M2X_DESTRUCTIVE=(restart stop rm kill down scale rollout)
 
 _m2x_err()  { print -u2 -P "%F{red}x%f $*" }
 _m2x_warn() { print -u2 -P "%F{yellow}!%f $*" }
@@ -101,7 +101,16 @@ _m2x_is_production() {
 # people dismiss reflexively.
 _m2x_confirm_destructive() {
   local rt="$1" verb="$2" target="$3" ctx
-  (( ${M2X_DESTRUCTIVE[(I)$verb]} )) || return 0
+  # An empty or clobbered list would mean "no verb is destructive" and wave
+  # every restart through on production without a word. That is a broken load,
+  # not a configuration — refuse everything rather than silently protect
+  # nothing. This is the failure mode the guard exists to prevent.
+  if [[ ${(t)_M2X_DESTRUCTIVE} != array* ]] || (( ! ${#_M2X_DESTRUCTIVE} )); then
+    _m2x_err "_M2X_DESTRUCTIVE is empty or not an array - the production guard cannot run"
+    _m2x_dim "   the plugin is loaded wrong or something overwrote it; reload the shell"
+    return 1
+  fi
+  (( ${_M2X_DESTRUCTIVE[(I)$verb]} )) || return 0
   _m2x_is_production "$rt" || return 0
 
   ctx=$(_m2x_${rt}_context)

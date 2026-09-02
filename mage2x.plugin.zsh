@@ -15,11 +15,11 @@
 # than guessed: matching `mysql` against a `mysql-backup` sidecar instead of
 # mysqld has already cost this fleet an incident.
 
-typeset -g MAGE2X_SRC="${0:A:h}"
+typeset -g _MAGE2X_SRC="${0:A:h}"
 
 local _f
 for _f in core rt-cli rt-kube catalog; do
-  source "$MAGE2X_SRC/lib/$_f.zsh"
+  source "$_MAGE2X_SRC/lib/$_f.zsh"
 done
 unset _f
 
@@ -39,7 +39,7 @@ _m2x_usage() {
   context               show which runtime and context would be used
   migrate               retire a superseded plugin and point ~/.zshrc here
 
-  magento shortcuts     ${(j:, :)${(ko)M2X_MAGE_SHORTCUTS}}
+  magento shortcuts     ${(j:, :)${(ko)_M2X_MAGE_SHORTCUTS}}
   <target> mage <cmd>   any other magento CLI command
   also                  magento, report, applog, composer,
                         redis-flush, varnish-purge, varnish-stat
