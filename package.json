@@ -1,6 +1,6 @@
 {
   "name": "@softspark/mage2x",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Run Magento and shell commands inside a container workload over docker, podman or kubectl. Refuses ambiguous targets instead of guessing, and asks before destructive operations on a production context.",
   "keywords": [
     "zsh",

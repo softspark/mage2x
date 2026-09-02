@@ -7,6 +7,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.2.1 -- Completion offered words, not targets (2026-08-28)
+
+### Fixed
+- **`_describe` was handed a literal instead of an array name.** zsh split it on
+  whitespace, so every word of every description became its own candidate:
+  typing `m2d a` offered `a`, `and`, `the`, `use`, `plugin` and `superseded`
+  alongside the real containers. The entries are now a proper array, and the
+  suite greps for the shape so it cannot come back.
+
+---
+
 ## v1.2.0 -- A single-file build (2026-08-28)
 
 ### Added

@@ -268,6 +268,31 @@ out=$(zsh -c "source '$REPO/mage2x.plugin.zsh'
 if [ "$out" = "fallback|bare" ]; then ok "a bare pod name falls back to the namespace"; else bad "namespace fallback failed" "got $out"; fi
 
 # --------------------------------------------------------------------------
+head_ "completion"
+
+# _describe takes the NAME of an array. Passing a parenthesised literal makes
+# zsh split it on whitespace, so every word of every description turns into a
+# completion candidate — the user sees "a", "and", "the", "use" offered as
+# targets. Grep for the shape rather than trying to drive the completion system.
+if grep -nE "_describe[^#]*'\(" "$REPO/_mage2x" >/dev/null 2>&1; then
+  bad "_describe is passed a literal instead of an array name" \
+      "$(grep -nE "_describe[^#]*'\(" "$REPO/_mage2x" | head -2)"
+else
+  ok "_describe is always given an array name"
+fi
+
+# Each entry must be one quoted array element holding a whole "value:description".
+# Driving the completion system in a test proves more about the harness than the
+# code, so assert the shape of the source instead.
+entries=$(sed -n '/^      special=($/,/^      )$/p' "$REPO/_mage2x" | sed '1d;$d')
+count=$(printf '%s\n' "$entries" | grep -c "^        '[^ ]*:.* .*'$" || true)
+if [ "$count" -eq 2 ]; then
+  ok "special entries are whole quoted descriptions"
+else
+  bad "special entries are malformed" "$entries"
+fi
+
+# --------------------------------------------------------------------------
 head_ "single-file build"
 
 # The bundle is what reaches hosts that can only carry one object, so it is

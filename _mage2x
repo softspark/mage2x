@@ -62,10 +62,17 @@ _m2x() {
 
   case $state in
     target)
-      local -a t
+      local -a t special
       t=(${(f)"$(_m2x_comp_targets)"})
       (( ${#t} )) && _describe -t targets 'target' t
-      _describe -t special 'special' '(context:show the runtime and context in use migrate:retire a superseded plugin)'
+      # _describe takes the NAME of an array, never a literal. Passing a
+      # parenthesised string makes zsh split it on whitespace, so every word of
+      # every description becomes its own completion candidate.
+      special=(
+        'context:show the runtime and context in use'
+        'migrate:retire a superseded plugin'
+      )
+      _describe -t special 'special' special
       ;;
     verb) _m2x_comp_verbs ;;
     args)
