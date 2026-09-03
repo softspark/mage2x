@@ -12,6 +12,8 @@
 - **Fixed:** `TAB` offered no containers on any host with `timeout` installed —
   the bound on a slow engine was wrapped around a shell function, which an
   external binary cannot run. It now wraps the engine itself
+- `docker info` and `podman info` are bounded as well, so a context pointing at
+  a host that is gone no longer holds the shell while the connection times out
 
 Earlier: the production-guard fix and the `M2X_*` namespace cleanup in 1.3.0,
 completion fixes in 1.2.1 and 1.2.2, the single-file `dist/` build in 1.2.0,

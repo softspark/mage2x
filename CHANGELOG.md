@@ -23,9 +23,23 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   wrapped by `_m2x_bounded`. Behaviour on a wedged engine is unchanged, and
   completion returns targets again.
 
-Three tests cover it: the completion helper is driven against a stub engine
-with a stub `timeout` on `$PATH`, the bound is asserted to still be applied, and
-the shape `timeout <n> _m2x_*` is banned across every source and the bundle.
+### Changed
+- **The availability probe is bounded too.** `docker info` and `podman info`
+  talk to the daemon, so a context pointing at a host that is gone waited for
+  the connection to fail and the shell waited with it — including on `TAB`,
+  where a bare `m2x` probes each runtime in turn. Both now run under a bound.
+
+  The duration is per call site rather than one constant, because the two uses
+  fail differently: a listing that gives up leaves a `TAB` with nothing on it
+  and gets three seconds, while a probe that gives up makes the tool announce it
+  has no runtime and refuse everything, so it gets ten — room for a first
+  connection to a remote context over SSH. `_m2x_kube_available` stays unbounded
+  and says why: it reads the kubeconfig and never contacts an API server.
+
+Six tests cover both: the completion helper and the probe are driven against a
+stub engine with a stub `timeout` on `$PATH`, the two durations are asserted to
+reach it, both paths are exercised with no `timeout` installed at all, and the
+shape `timeout <n> _m2x_*` is banned across every source and the bundle.
 
 ---
 

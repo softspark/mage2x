@@ -354,11 +354,18 @@ STUB="$SANDBOX/stub"
 mkdir -p "$STUB"
 cat > "$STUB/docker" <<'ENGINE'
 #!/bin/sh
-[ "$1" = ps ] && printf 'alpha\nbeta\n'
+case "$1" in
+  ps)   printf 'alpha\nbeta\n' ;;
+  info) : ;;
+  *)    exit 1 ;;
+esac
 ENGINE
 cp "$STUB/docker" "$STUB/podman"
+# Records the duration it was handed, then behaves like coreutils': drop it and
+# exec the rest.
 cat > "$STUB/timeout" <<'TMO'
 #!/bin/sh
+[ -n "$BOUND_LOG" ] && printf '%s\n' "$1" >> "$BOUND_LOG"
 shift
 exec "$@"
 TMO
@@ -383,27 +390,38 @@ for alias_name in m2d m2p; do
   esac
 done
 
-# The bound must still be applied, or the fix traded a silent empty list for a
-# shell that hangs on an unreachable engine. The marker goes to stdout: the
-# adapter sends its own stderr to /dev/null, which would swallow it.
-cat > "$STUB/timeout" <<'TMO'
-#!/bin/sh
-printf 'BOUND=%s\n' "$1"
-shift
-exec "$@"
-TMO
-out=$(PATH="$STUB:$PATH" zsh -c "source '$REPO/mage2x.plugin.zsh'; _m2x_docker_list" 2>&1)
+# The availability probe is the other call that reaches the engine, and the one
+# whose failure is loudest: it decides whether the tool has a runtime at all.
+out=$(PATH="$STUB:$PATH" zsh -c "source '$REPO/mage2x.plugin.zsh'
+                                 _m2x_docker_available && print usable" 2>&1)
 case "$out" in
-  *"BOUND=3"*) ok "the engine call is bounded when timeout is available" ;;
-  *) bad "the engine call is no longer bounded" "$out" ;;
+  *usable*) ok "the availability probe survives a present timeout" ;;
+  *) bad "the availability probe failed while timeout was available" "${out:-<empty>}" ;;
 esac
 
-# And it must work where there is no timeout at all, which is stock macOS.
+# Both bounds must still be applied, or the fix traded a silent empty list for a
+# shell that hangs on an unreachable engine. The two durations differ on
+# purpose: a listing only decorates a TAB, a probe that gives up makes the tool
+# refuse everything, so it is the one allowed to wait.
+LOG="$SANDBOX/bound.log"
+: > "$LOG"
+BOUND_LOG="$LOG" PATH="$STUB:$PATH" zsh -c "source '$REPO/mage2x.plugin.zsh'
+                                            _m2x_docker_list
+                                            _m2x_docker_available" >/dev/null 2>&1
+bounds=$(tr '\n' ' ' < "$LOG" | sed 's/ *$//')
+if [ "$bounds" = "3 10" ]; then
+  ok "the listing is bounded at 3s and the probe at 10s"
+else
+  bad "the engine calls are not bounded as intended" "got: ${bounds:-<none>}"
+fi
+
+# And both must work where there is no timeout at all, which is stock macOS.
 BARE="$SANDBOX/bare"
 mkdir -p "$BARE"
 cp "$STUB/docker" "$BARE/docker"
 chmod +x "$BARE/docker"
-out=$(PATH="$BARE:/usr/bin:/bin" zsh -c "source '$REPO/mage2x.plugin.zsh'; _m2x_docker_list" 2>/dev/null)
+out=$(PATH="$BARE:/usr/bin:/bin" zsh -c "source '$REPO/mage2x.plugin.zsh'
+                                         _m2x_docker_available && _m2x_docker_list" 2>/dev/null)
 case "$out" in
   *alpha*beta*) ok "the adapter works with no timeout on PATH" ;;
   *) bad "the adapter needs timeout to be installed" "${out:-<empty>}" ;;

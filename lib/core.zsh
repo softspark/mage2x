@@ -35,9 +35,16 @@ _m2x_dim()  { print -P "%F{8}$*%f" }
 # not found. Wrapping the adapter instead looked equivalent and returned nothing
 # on every host with coreutils installed — silently, because the adapter sends
 # its own errors to /dev/null. TAB then offered no containers at all.
+#
+# The duration belongs to the call site, because the two uses fail differently.
+# A listing that gives up leaves a TAB with nothing on it, so it is cut short at
+# three seconds. An availability probe that gives up makes the tool announce it
+# has no runtime at all and refuse to run anything, so it gets ten — enough for
+# a first connection to a remote context over SSH before that is said.
 _m2x_bounded() {
+  local secs="$1"; shift
   if (( $+commands[timeout] )); then
-    command timeout 3 "$@"
+    command timeout "$secs" "$@"
   else
     command "$@"
   fi
