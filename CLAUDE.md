@@ -40,6 +40,12 @@ npm run bundle      # regenerate dist/ after any change under lib/ or the plugin
   string is split on whitespace, so every word of every description becomes its
   own candidate — and nothing here catches it: `zsh -n` passes, and completion
   is the one surface the suite cannot drive. Grep for the shape instead
+- `timeout` is a binary and cannot run a shell function. Bound the ENGINE with
+  `_m2x_bounded`, never `_m2x_<rt>_list`: the wrong shape fails instantly, the
+  error lands in the adapter's `2>/dev/null`, and completion goes empty on every
+  host that has coreutils while staying green everywhere else. A helper reached
+  out of a completion file can still be called directly by the suite — source
+  `_mage2x`, drop the dispatch line's noise, invoke the function
 - **`M2X_*` is the public namespace and nothing else may live there.** zsh
   offers parameter names in command position, so a stray internal is advertised
   by TAB as configuration. Internals are `_M2X_*`; a test pins the public set to

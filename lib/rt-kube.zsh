@@ -12,6 +12,9 @@
 
 typeset -g M2X_KUBE_NS="${M2X_KUBE_NS:-}"
 
+# Unbounded on purpose, unlike the docker and podman probes: this reads the
+# kubeconfig on disk and never contacts an API server, so there is nothing here
+# that can block on an unreachable cluster.
 _m2x_kube_available() {
   command -v kubectl >/dev/null 2>&1 || return 1
   command kubectl config current-context >/dev/null 2>&1
@@ -34,10 +37,10 @@ _m2x_kube_ns() {
 # across namespaces rather than silently inside one.
 _m2x_kube_list() {
   if [[ -n "$M2X_KUBE_NS" ]]; then
-    command kubectl get pods -n "$M2X_KUBE_NS" --no-headers -o custom-columns=':metadata.name' 2>/dev/null \
+    _m2x_bounded 3 kubectl get pods -n "$M2X_KUBE_NS" --no-headers -o custom-columns=':metadata.name' 2>/dev/null \
       | sed "s#^#$M2X_KUBE_NS/#"
   else
-    command kubectl get pods --all-namespaces --no-headers \
+    _m2x_bounded 3 kubectl get pods --all-namespaces --no-headers \
       -o custom-columns=':metadata.namespace,:metadata.name' 2>/dev/null \
       | awk 'NF==2 {print $1"/"$2}'
   fi

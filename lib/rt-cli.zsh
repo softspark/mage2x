@@ -8,9 +8,12 @@ _m2x_cli_bin() { print -r -- "$1" }   # runtime name == binary name for both
 
 # --- docker ------------------------------------------------------------------
 
+# `docker info` talks to the daemon, so it is the one probe here that can block:
+# a context pointing at a host that is gone waits for the connection to fail,
+# and until it does, so does the shell that ran it.
 _m2x_docker_available() {
   command -v docker >/dev/null 2>&1 || return 1
-  command docker info >/dev/null 2>&1
+  _m2x_bounded 10 docker info >/dev/null 2>&1
 }
 
 _m2x_docker_context() {
@@ -22,7 +25,7 @@ _m2x_docker_context() {
   print -r -- "docker:${c:-default}@${HOST:-$(hostname -s 2>/dev/null)}"
 }
 
-_m2x_docker_list()  { command docker ps --format '{{.Names}}' 2>/dev/null }
+_m2x_docker_list()  { _m2x_bounded 3 docker ps --format '{{.Names}}' 2>/dev/null }
 # ${u:+-u $u} expands to ONE word in zsh, so docker receives "-u www-data" as a
 # single argument and reports it cannot find a user with a leading space.
 _m2x_docker_exec() {
@@ -48,7 +51,7 @@ _m2x_docker_forward() {
 
 _m2x_podman_available() {
   command -v podman >/dev/null 2>&1 || return 1
-  command podman info >/dev/null 2>&1
+  _m2x_bounded 10 podman info >/dev/null 2>&1
 }
 
 _m2x_podman_context() {
@@ -58,7 +61,7 @@ _m2x_podman_context() {
   print -r -- "podman:${c:-local}@${HOST:-$(hostname -s 2>/dev/null)}"
 }
 
-_m2x_podman_list()  { command podman ps --format '{{.Names}}' 2>/dev/null }
+_m2x_podman_list()  { _m2x_bounded 3 podman ps --format '{{.Names}}' 2>/dev/null }
 _m2x_podman_exec() {
   local t=$1 u=$2; shift 2
   local -a uf; [[ -n "$u" ]] && uf=(-u "$u")

@@ -7,6 +7,42 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.3.1 -- TAB lists containers again where coreutils is installed (2026-09-03)
+
+### Fixed
+- **Completion offered no targets at all on any host with `timeout` on `$PATH`.**
+  The bound meant to keep a slow engine from hanging the shell was written as
+  `timeout 3 _m2x_<rt>_list`, and `timeout` is an external binary: it execs a
+  program and cannot run a shell function. The call failed instantly, the error
+  went to `/dev/null` with the adapter's own, and `m2x <TAB>` showed nothing.
+  Hosts without coreutils took the fallback branch and were never affected,
+  which is why this survived a release.
+
+  The bound now goes around the engine, inside the adapter, where `timeout` has
+  a program to run: `docker ps`, `podman ps` and `kubectl get pods` are each
+  wrapped by `_m2x_bounded`. Behaviour on a wedged engine is unchanged, and
+  completion returns targets again.
+
+### Changed
+- **The availability probe is bounded too.** `docker info` and `podman info`
+  talk to the daemon, so a context pointing at a host that is gone waited for
+  the connection to fail and the shell waited with it — including on `TAB`,
+  where a bare `m2x` probes each runtime in turn. Both now run under a bound.
+
+  The duration is per call site rather than one constant, because the two uses
+  fail differently: a listing that gives up leaves a `TAB` with nothing on it
+  and gets three seconds, while a probe that gives up makes the tool announce it
+  has no runtime and refuse everything, so it gets ten — room for a first
+  connection to a remote context over SSH. `_m2x_kube_available` stays unbounded
+  and says why: it reads the kubeconfig and never contacts an API server.
+
+Six tests cover both: the completion helper and the probe are driven against a
+stub engine with a stub `timeout` on `$PATH`, the two durations are asserted to
+reach it, both paths are exercised with no `timeout` installed at all, and the
+shape `timeout <n> _m2x_*` is banned across every source and the bundle.
+
+---
+
 ## v1.3.0 -- The production guard can no longer protect nothing (2026-09-02)
 
 ### Fixed
