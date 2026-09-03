@@ -111,8 +111,22 @@ npm view "@softspark/mage2x@X.Y.Z" --json | python3 -c \
   "import json,sys; d=json.load(sys.stdin); \
    assert d['dist']['attestations']['provenance']['predicateType']=='https://slsa.dev/provenance/v1'; \
    print('PROVENANCE OK')"
+```
+
+`npm audit signatures` reads a lockfile, and the install in Phase 1 is a global
+prefix, which has none: run as written there it answers "found no installed
+dependencies to audit" and exits non-zero, which reads like a failed gate rather
+than the wrong working directory. Give it a throwaway project:
+
+```bash
+mkdir -p "$SMOKE/auditproj" && cd "$SMOKE/auditproj"
+npm init -y >/dev/null
+npm install "@softspark/mage2x@X.Y.Z" --ignore-scripts
 npm audit signatures --registry https://registry.npmjs.org
 ```
+
+Both lines of the result matter: a verified **registry signature** says the
+tarball is the one npm holds, and a verified **attestation** says CI built it.
 
 ## Phase 7 — tarball contents
 
@@ -135,4 +149,4 @@ Delete `$SMOKE` and open a new shell.
 
 | Version | Date | Result |
 |---|---|---|
-| | | |
+| 1.3.1 | 2026-09-03 | Pass, first run of this SOP. Phases 1-7 green: installer links and refuses a real directory, the published package carries the whole adapter contract (24/24), the guard refuses a production restart and leaves reads alone, docker lists 26 targets and `exec` prints `ok`, provenance verifies with a registry signature and an attestation, and nothing outside `files` shipped. Completion returned 25 targets on a host with `timeout` present, which is the release. Two notes: Phase 6's `npm audit signatures` needed a project with a lockfile and is now written that way, and Phase 5's `exec` fails on a container with no `www-data` — the documented `M2X_APP_USER` default, not a defect. |
