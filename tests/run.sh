@@ -339,6 +339,89 @@ for cmd in context migrate; do
 done
 
 # --------------------------------------------------------------------------
+head_ "bounded engine calls"
+
+# `timeout` is an external binary: it execs a program, so a shell function
+# handed to it is not found. `timeout 3 _m2x_<rt>_list` in the completion
+# therefore returned nothing on every host that has coreutils installed, and
+# said nothing about it because the adapter drops its own stderr. TAB offered
+# no containers at all.
+#
+# A stub engine and a stub timeout reproduce that here, with no docker and no
+# coreutils: the stub timeout is a separate process, so it cannot see a zsh
+# function any more than the real one can.
+STUB="$SANDBOX/stub"
+mkdir -p "$STUB"
+cat > "$STUB/docker" <<'ENGINE'
+#!/bin/sh
+[ "$1" = ps ] && printf 'alpha\nbeta\n'
+ENGINE
+cp "$STUB/docker" "$STUB/podman"
+cat > "$STUB/timeout" <<'TMO'
+#!/bin/sh
+shift
+exec "$@"
+TMO
+chmod +x "$STUB/docker" "$STUB/podman" "$STUB/timeout"
+
+# The completion helper is driven directly: sourcing _mage2x runs its dispatch
+# line, which needs the completion system, so its noise goes to /dev/null and
+# the function it defined is called on its own.
+comp_targets() {
+  PATH="$STUB:$PATH" zsh -c "
+    source '$REPO/mage2x.plugin.zsh'
+    source '$REPO/_mage2x' 2>/dev/null
+    words=($1)
+    _m2x_comp_targets" 2>/dev/null
+}
+
+for alias_name in m2d m2p; do
+  out=$(comp_targets "$alias_name")
+  case "$out" in
+    *alpha*beta*) ok "$alias_name completes targets with timeout on PATH" ;;
+    *) bad "$alias_name completed nothing while timeout was available" "${out:-<empty>}" ;;
+  esac
+done
+
+# The bound must still be applied, or the fix traded a silent empty list for a
+# shell that hangs on an unreachable engine. The marker goes to stdout: the
+# adapter sends its own stderr to /dev/null, which would swallow it.
+cat > "$STUB/timeout" <<'TMO'
+#!/bin/sh
+printf 'BOUND=%s\n' "$1"
+shift
+exec "$@"
+TMO
+out=$(PATH="$STUB:$PATH" zsh -c "source '$REPO/mage2x.plugin.zsh'; _m2x_docker_list" 2>&1)
+case "$out" in
+  *"BOUND=3"*) ok "the engine call is bounded when timeout is available" ;;
+  *) bad "the engine call is no longer bounded" "$out" ;;
+esac
+
+# And it must work where there is no timeout at all, which is stock macOS.
+BARE="$SANDBOX/bare"
+mkdir -p "$BARE"
+cp "$STUB/docker" "$BARE/docker"
+chmod +x "$BARE/docker"
+out=$(PATH="$BARE:/usr/bin:/bin" zsh -c "source '$REPO/mage2x.plugin.zsh'; _m2x_docker_list" 2>/dev/null)
+case "$out" in
+  *alpha*beta*) ok "the adapter works with no timeout on PATH" ;;
+  *) bad "the adapter needs timeout to be installed" "${out:-<empty>}" ;;
+esac
+
+# Nothing may hand a shell function to timeout again. zsh -n cannot catch it and
+# neither can the suite above once the shape moves to another adapter, so the
+# shape itself is what is pinned.
+offenders=$(grep -rnE '(^|[;&|(]|[[:space:]])timeout[[:space:]]+[0-9]+[[:space:]]+_m2x_' \
+  "$REPO/_mage2x" "$REPO/mage2x.plugin.zsh" "$REPO/lib" "$REPO/dist" 2>/dev/null \
+  | grep -v ':[[:space:]]*#')
+if [ -z "$offenders" ]; then
+  ok "timeout is never applied to a shell function"
+else
+  bad "timeout is applied to a shell function" "$offenders"
+fi
+
+# --------------------------------------------------------------------------
 head_ "single-file build"
 
 # The bundle is what reaches hosts that can only carry one object, so it is

@@ -7,6 +7,28 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.3.1 -- TAB lists containers again where coreutils is installed (2026-09-03)
+
+### Fixed
+- **Completion offered no targets at all on any host with `timeout` on `$PATH`.**
+  The bound meant to keep a slow engine from hanging the shell was written as
+  `timeout 3 _m2x_<rt>_list`, and `timeout` is an external binary: it execs a
+  program and cannot run a shell function. The call failed instantly, the error
+  went to `/dev/null` with the adapter's own, and `m2x <TAB>` showed nothing.
+  Hosts without coreutils took the fallback branch and were never affected,
+  which is why this survived a release.
+
+  The bound now goes around the engine, inside the adapter, where `timeout` has
+  a program to run: `docker ps`, `podman ps` and `kubectl get pods` are each
+  wrapped by `_m2x_bounded`. Behaviour on a wedged engine is unchanged, and
+  completion returns targets again.
+
+Three tests cover it: the completion helper is driven against a stub engine
+with a stub `timeout` on `$PATH`, the bound is asserted to still be applied, and
+the shape `timeout <n> _m2x_*` is banned across every source and the bundle.
+
+---
+
 ## v1.3.0 -- The production guard can no longer protect nothing (2026-09-02)
 
 ### Fixed

@@ -34,10 +34,10 @@ _m2x_kube_ns() {
 # across namespaces rather than silently inside one.
 _m2x_kube_list() {
   if [[ -n "$M2X_KUBE_NS" ]]; then
-    command kubectl get pods -n "$M2X_KUBE_NS" --no-headers -o custom-columns=':metadata.name' 2>/dev/null \
+    _m2x_bounded kubectl get pods -n "$M2X_KUBE_NS" --no-headers -o custom-columns=':metadata.name' 2>/dev/null \
       | sed "s#^#$M2X_KUBE_NS/#"
   else
-    command kubectl get pods --all-namespaces --no-headers \
+    _m2x_bounded kubectl get pods --all-namespaces --no-headers \
       -o custom-columns=':metadata.namespace,:metadata.name' 2>/dev/null \
       | awk 'NF==2 {print $1"/"$2}'
   fi

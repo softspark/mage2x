@@ -18,17 +18,15 @@ _m2x_comp_runtime() {
   done
 }
 
-# Live targets. Completion must never be the thing that hangs a shell, so the
-# call is bounded and a slow or unreachable runtime simply yields nothing.
+# Live targets. Completion must never be the thing that hangs a shell; the
+# adapter bounds its own call to the engine (`_m2x_bounded`), so a slow or
+# unreachable runtime yields nothing rather than blocking TAB. The bound cannot
+# be applied here: `timeout` is a binary and cannot execute a shell function.
 _m2x_comp_targets() {
   local rt
   rt=$(_m2x_comp_runtime) || return
   [[ -n "$rt" ]] || return
-  if (( $+commands[timeout] )); then
-    timeout 3 _m2x_${rt}_list 2>/dev/null
-  else
-    _m2x_${rt}_list 2>/dev/null
-  fi
+  _m2x_${rt}_list 2>/dev/null
 }
 
 _m2x_comp_verbs() {

@@ -7,15 +7,16 @@
 [![npm](https://img.shields.io/npm/v/@softspark/mage2x)](https://www.npmjs.com/package/@softspark/mage2x)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-## What's New in v1.3.0
+## What's New in v1.3.1
 
-- **Fixed:** an emptied destructive-verb list silently disabled the production
-  guard; it now refuses rather than protecting nothing
-- Internal parameters left `M2X_*`, which TAB advertises as configuration
+- **Fixed:** `TAB` offered no containers on any host with `timeout` installed —
+  the bound on a slow engine was wrapped around a shell function, which an
+  external binary cannot run. It now wraps the engine itself
 
-Earlier: completion fixes in 1.2.1 and 1.2.2, the single-file `dist/` build in
-1.2.0, `m2d`/`m2p`/`m2k` and `m2x migrate` in 1.1.0, three runtimes with refusal
-on ambiguous targets and the production guard in 1.0.0. See
+Earlier: the production-guard fix and the `M2X_*` namespace cleanup in 1.3.0,
+completion fixes in 1.2.1 and 1.2.2, the single-file `dist/` build in 1.2.0,
+`m2d`/`m2p`/`m2k` and `m2x migrate` in 1.1.0, three runtimes with refusal on
+ambiguous targets and the production guard in 1.0.0. See
 [CHANGELOG.md](CHANGELOG.md).
 
 ## Table of Contents

@@ -27,6 +27,22 @@ _m2x_warn() { print -u2 -P "%F{yellow}!%f $*" }
 _m2x_info() { print -P "%F{cyan}>%f $*" }
 _m2x_dim()  { print -P "%F{8}$*%f" }
 
+# Bound a call to a container engine, so an unreachable one cannot hang the
+# shell it was invoked from — completion above all, where nothing may block.
+#
+# The bound goes around the ENGINE and never around an adapter. `timeout` is an
+# external binary: it execs a program, and a zsh function handed to it is simply
+# not found. Wrapping the adapter instead looked equivalent and returned nothing
+# on every host with coreutils installed — silently, because the adapter sends
+# its own errors to /dev/null. TAB then offered no containers at all.
+_m2x_bounded() {
+  if (( $+commands[timeout] )); then
+    command timeout 3 "$@"
+  else
+    command "$@"
+  fi
+}
+
 # --- runtime selection -------------------------------------------------------
 
 # Order matters only as a tie-break: an explicit M2X_RUNTIME always wins, and a

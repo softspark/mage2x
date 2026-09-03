@@ -22,7 +22,7 @@ _m2x_docker_context() {
   print -r -- "docker:${c:-default}@${HOST:-$(hostname -s 2>/dev/null)}"
 }
 
-_m2x_docker_list()  { command docker ps --format '{{.Names}}' 2>/dev/null }
+_m2x_docker_list()  { _m2x_bounded docker ps --format '{{.Names}}' 2>/dev/null }
 # ${u:+-u $u} expands to ONE word in zsh, so docker receives "-u www-data" as a
 # single argument and reports it cannot find a user with a leading space.
 _m2x_docker_exec() {
@@ -58,7 +58,7 @@ _m2x_podman_context() {
   print -r -- "podman:${c:-local}@${HOST:-$(hostname -s 2>/dev/null)}"
 }
 
-_m2x_podman_list()  { command podman ps --format '{{.Names}}' 2>/dev/null }
+_m2x_podman_list()  { _m2x_bounded podman ps --format '{{.Names}}' 2>/dev/null }
 _m2x_podman_exec() {
   local t=$1 u=$2; shift 2
   local -a uf; [[ -n "$u" ]] && uf=(-u "$u")
