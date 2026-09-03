@@ -416,14 +416,21 @@ else
 fi
 
 # And both must work where there is no timeout at all, which is stock macOS.
+# $PATH is narrowed INSIDE zsh rather than around it: every Linux runner carries
+# /usr/bin/timeout, so leaving a system directory on the path to find zsh with
+# would quietly turn this into a second copy of the test above. The probe
+# reports what it found, so a passing assertion means the branch was real.
 BARE="$SANDBOX/bare"
 mkdir -p "$BARE"
 cp "$STUB/docker" "$BARE/docker"
 chmod +x "$BARE/docker"
-out=$(PATH="$BARE:/usr/bin:/bin" zsh -c "source '$REPO/mage2x.plugin.zsh'
-                                         _m2x_docker_available && _m2x_docker_list" 2>/dev/null)
+out=$(zsh -c "PATH='$BARE'
+              print \"have_timeout=\${+commands[timeout]}\"
+              source '$REPO/mage2x.plugin.zsh'
+              _m2x_docker_available && _m2x_docker_list" 2>/dev/null)
 case "$out" in
-  *alpha*beta*) ok "the adapter works with no timeout on PATH" ;;
+  *have_timeout=0*alpha*beta*) ok "the adapter works with no timeout on PATH" ;;
+  *have_timeout=1*) bad "the no-timeout case never ran: timeout was still on PATH" "$out" ;;
   *) bad "the adapter needs timeout to be installed" "${out:-<empty>}" ;;
 esac
 
