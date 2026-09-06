@@ -153,6 +153,10 @@ Delete `$SMOKE` and open a new shell.
 
 ## Verification on 2026-09-06
 
+Published 1.4.0: exact release-head CI and publish workflow passed;
+registry version, provenance, cryptographic signatures and installed CLI smoke
+were verified. See [the executed publication record](release-verification-20260906.md#published-140).
+
 The published 1.3.1 package was checked separately from the unshipped
 1.4.0 candidate. See [the execution record](release-verification-20260906.md)
 for completed checks and remaining release checks.

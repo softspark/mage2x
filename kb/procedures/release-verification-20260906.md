@@ -6,10 +6,35 @@ tags: [release, verification, provenance]
 version: "1.4.0"
 created: "2026-09-06"
 last_updated: "2026-09-06"
-description: "Executed checks for published 1.3.1 and the 1.4.0 candidate."
+description: "Published 1.4.0 verification, pre-release gates and earlier smoke evidence."
 ---
 
 # Executed verification
+
+## Published 1.4.0
+
+Published on 2026-09-06 from commit `fde2884a8897a46f9e5c56ae515caae820155916`.
+
+- [Release](https://github.com/softspark/mage2x/releases/tag/v1.4.0)
+- [Exact release-head CI](https://github.com/softspark/mage2x/actions/runs/34051726785): success
+- [Publish workflow](https://github.com/softspark/mage2x/actions/runs/34052343241): success
+
+Registry metadata returned the exact version and SLSA v1 provenance. A fresh
+consumer lockfile installed gitspace 1.3.0, mage2x 1.4.0 and jira-mcp 1.11.0 with
+scripts disabled. Cryptographic verification completed successfully:
+**4 verified registry signatures and 3 verified attestations**. This is a new
+verification of the released artifacts, separate from the older smoke below.
+
+All three packages contained their expected runtime files, LICENSE and NOTICE;
+tests, KB and .github were absent. Syntax checks preceded CLI execution.
+
+The installed plugin passed help, all 24 adapter-function checks, ambiguity
+refusal, production refusal for empty/0/false overrides, and JSON/SARIF audits.
+The installer symlink/refusal checks passed without changing the real .zshrc.
+A read-only Docker smoke returned MAGE2X_1_4_0_PUBLISHED_READ_OK from rag-mcp-core.
+
+## Earlier published-version smoke
+
 
 The published package `@softspark/mage2x@1.3.1` was installed as an
 exact dependency in a temporary npm project, with `--ignore-scripts` and a
