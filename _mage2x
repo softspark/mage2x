@@ -51,6 +51,10 @@ _m2x_comp_verbs() {
 }
 
 _m2x() {
+  if [[ ${words[2]} == audit ]]; then
+    _arguments '--json[emit a machine-readable local configuration audit]' '--sarif[emit SARIF 2.1.0 for code scanning]'
+    return
+  fi
   _arguments -C \
     '--runtime[force a container runtime]:runtime:(docker podman kube)' \
     '(-h --help)'{-h,--help}'[show usage]' \

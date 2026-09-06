@@ -7,6 +7,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.4.0 (release candidate, 2026-09-06)
+
+- Add read-only local configuration audits in text, JSON and SARIF 2.1.0.
+- Require exactly M2X_ASSUME_YES=1 to bypass production confirmation. Values such as 0 or false grant no approval.
+- Isolate test shell startup configuration so developer PATH customizations cannot bypass fake runtime tests.
+- Add setup and configuration references and refresh verification evidence.
+
 ## v1.3.1 -- TAB lists containers again where coreutils is installed (2026-09-03)
 
 ### Fixed

@@ -7,19 +7,12 @@
 [![npm](https://img.shields.io/npm/v/@softspark/mage2x)](https://www.npmjs.com/package/@softspark/mage2x)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-## What's New in v1.3.1
+## What's New in v1.4.0 (release candidate)
 
-- **Fixed:** `TAB` offered no containers on any host with `timeout` installed —
-  the bound on a slow engine was wrapped around a shell function, which an
-  external binary cannot run. It now wraps the engine itself
-- `docker info` and `podman info` are bounded as well, so a context pointing at
-  a host that is gone no longer holds the shell while the connection times out
-
-Earlier: the production-guard fix and the `M2X_*` namespace cleanup in 1.3.0,
-completion fixes in 1.2.1 and 1.2.2, the single-file `dist/` build in 1.2.0,
-`m2d`/`m2p`/`m2k` and `m2x migrate` in 1.1.0, three runtimes with refusal on
-ambiguous targets and the production guard in 1.0.0. See
-[CHANGELOG.md](CHANGELOG.md).
+- `m2x audit` inspects local runtime selection and production-guard configuration.
+- `--json` and `--sarif` export findings without contacting engines or revealing environment values.
+- Tests isolate Zsh startup configuration so local PATH customizations cannot bypass fake engines.
+- Only the exact `M2X_ASSUME_YES=1` value bypasses production confirmation; `0` and `false` do not authorize an unattended restart.
 
 ## Table of Contents
 
@@ -31,6 +24,7 @@ ambiguous targets and the production guard in 1.0.0. See
 - [Production safety](#production-safety)
 - [Configuration](#configuration)
 - [Architecture](#architecture)
+- [Documentation](#documentation)
 - [Known Limits](#known-limits)
 - [Contributing](#contributing)
 - [Security](#security)
@@ -170,6 +164,13 @@ Magento shortcuts: `cache`, `cache-flush`, `reindex`, `upgrade`, `di`, `deploy`,
 knows the platform, the lock files and the network ordering. `mage2x` is for the
 case the Makefile cannot serve: a server, or any host without the project tree.
 
+## Local audit
+
+Run `m2x audit --json` or `m2x audit --sarif` to inspect local settings without
+contacting an engine. This reports confirmation bypasses, broken guard settings,
+unknown adapters and missing binaries. It does not establish remote reachability.
+See the [audit contract](kb/reference/configuration.md#audit-contract).
+
 ## Production safety
 
 A context is production when `M2X_PROD=1` is set, or when its name matches
@@ -200,9 +201,12 @@ guard refuses every command, rather than concluding that nothing is destructive.
 | `M2X_KUBE_NS` | default namespace, and restrict listing to it |
 | `M2X_APP_USER` | user for application commands (default `www-data`) |
 | `M2X_MAGENTO_BIN` | path to the Magento CLI (default `bin/magento`) |
-| `M2X_PROD_PATTERNS` | regex marking a context as production |
+| `M2X_PROD_PATTERNS` | Zsh pattern alternatives marking a context as production |
 | `M2X_PROD` | treat the current context as production |
 | `M2X_ASSUME_YES` | skip the production prompt |
+
+The confirmation override must equal `1`. Other nonempty values are reported
+by the local audit and do not grant approval.
 
 ## Architecture
 
@@ -225,6 +229,11 @@ tests/run.sh          suite, runs against a fake adapter — no engine required
 Every adapter implements the same verbs: `available`, `context`, `list`, `exec`,
 `shell`, `logs`, `restart`, `forward`. Adding a runtime touches one file and no
 command; adding a command touches the catalogue and no runtime.
+
+## Documentation
+
+- [Setup and workflows](kb/howto/setup.md)
+- [Configuration and audit formats](kb/reference/configuration.md)
 
 ## Known Limits
 

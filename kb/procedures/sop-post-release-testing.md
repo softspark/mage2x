@@ -4,9 +4,9 @@ category: procedures
 section: procedures
 service: mage2x
 tags: [sop, testing, smoke-test, provenance, npm, post-release, runtimes]
-version: "1.0.0"
+version: "1.4.0"
 created: "2026-08-28"
-last_updated: "2026-08-28"
+last_updated: "2026-09-06"
 description: "Smoke-test a published @softspark/mage2x release from npm in an isolated HOME, including the production guard and at least one real container runtime."
 ---
 
@@ -150,3 +150,9 @@ Delete `$SMOKE` and open a new shell.
 | Version | Date | Result |
 |---|---|---|
 | 1.3.1 | 2026-09-03 | Pass, first run of this SOP. Phases 1-7 green: installer links and refuses a real directory, the published package carries the whole adapter contract (24/24), the guard refuses a production restart and leaves reads alone, docker lists 26 targets and `exec` prints `ok`, provenance verifies with a registry signature and an attestation, and nothing outside `files` shipped. Completion returned 25 targets on a host with `timeout` present, which is the release. Two notes: Phase 6's `npm audit signatures` needed a project with a lockfile and is now written that way, and Phase 5's `exec` fails on a container with no `www-data` — the documented `M2X_APP_USER` default, not a defect. |
+
+## Verification on 2026-09-06
+
+The published 1.3.1 package was checked separately from the unshipped
+1.4.0 candidate. See [the execution record](release-verification-20260906.md)
+for completed checks and remaining release checks.

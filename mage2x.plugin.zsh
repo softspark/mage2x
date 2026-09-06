@@ -37,6 +37,7 @@ _m2x_usage() {
   <target> restart      restart; on production this asks first
   <target> forward L:R  port-forward (kubectl only)
   context               show which runtime and context would be used
+  audit [--json|--sarif] inspect local configuration without contacting an engine
   migrate               retire a superseded plugin and point ~/.zshrc here
 
   magento shortcuts     ${(j:, :)${(ko)_M2X_MAGE_SHORTCUTS}}
@@ -48,7 +49,7 @@ environment
   M2X_RUNTIME           force an adapter instead of detecting one
   M2X_KUBE_NS           default namespace for kubectl
   M2X_APP_USER          user for application commands (default www-data)
-  M2X_PROD_PATTERNS     regex marking a context as production
+  M2X_PROD_PATTERNS     Zsh pattern alternatives marking a context as production
   M2X_PROD=1            treat the current context as production
   M2X_ASSUME_YES=1      skip the production prompt (for automation)"
 }
@@ -128,6 +129,7 @@ m2x() {
   if [[ "${1:-}" == migrate ]]; then _m2x_migrate; return $?; fi
 
   [[ -n "$rt" ]] && M2X_RUNTIME="$rt"
+  if [[ "${1:-}" == audit ]]; then shift; _m2x_audit "$@"; return $?; fi
   rt=$(_m2x_detect_runtime) || {
     # A pinned runtime has already reported precisely why it is unusable.
     # Adding "tried docker, podman, kubectl" on top would claim a search that

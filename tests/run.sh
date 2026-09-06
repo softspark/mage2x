@@ -20,6 +20,10 @@ command -v zsh >/dev/null 2>&1 || { echo "zsh is required"; exit 1; }
 SANDBOX="$(cd "$(mktemp -d)" && pwd -P)"
 trap 'rm -rf "$SANDBOX"' EXIT
 
+# User startup files can rewrite PATH before a stub engine is reached.
+export ZDOTDIR="$SANDBOX/zsh-config"
+mkdir -p "$ZDOTDIR"
+
 # A fake adapter with a deliberately awkward target list: two names where one is
 # a prefix of the other, and a sidecar whose name contains the service it backs
 # up — the shape that made `name=mysql` select `mysql-backup` in production.
@@ -494,6 +498,57 @@ fi
 
 # --------------------------------------------------------------------------
 head_ "syntax"
+
+out=$(run 'M2X_ASSUME_YES=token-must-not-leak M2X_PROD=1 m2x audit --json')
+audit_code=$?
+if [ "$audit_code" -eq 1 ] && printf '%s' "$out" | node --input-type=module -e '
+import assert from "node:assert/strict";
+let raw = ""; for await (const chunk of process.stdin) raw += chunk;
+const report = JSON.parse(raw);
+assert.equal(report.scope, "local-configuration");
+assert.equal(report.runtimeProbed, false);
+assert.equal(report.productionForced, true);
+assert(report.findings.some(f => f.ruleId === "invalid-confirmation-override"));
+assert(!raw.includes("token-must-not-leak"));
+'; then ok "JSON audit reports invalid confirmation override without exposing environment values"
+else bad "JSON audit report failed" "$out"; fi
+
+if out=$(run '_m2x_fake_available() { print SHOULD_NOT_RUN; return 1 }
+            _m2x_fake_context() { print SHOULD_NOT_RUN; return 1 }
+            M2X_ASSUME_YES= m2x audit --json') && [[ "$out" != *SHOULD_NOT_RUN* ]]; then
+  ok "audit never probes an engine or context even when unavailable"
+else bad "audit contacted the runtime" "$out"; fi
+
+out=$(run '_M2X_DESTRUCTIVE=(); M2X_PROD_PATTERNS=; m2x audit --json')
+if [ "$?" -eq 1 ] && [[ "$out" == *broken-production-guard* && "$out" == *empty-production-patterns* ]]; then
+  ok "audit reports broken guard configuration"
+else bad "audit missed broken guard" "$out"; fi
+
+out=$(run 'M2X_RUNTIME=unknown-secret m2x audit --json')
+if [ "$?" -eq 1 ] && [[ "$out" == *unknown-runtime* && "$out" != *unknown-secret* ]]; then
+  ok "audit reports unregistered adapters without exposing their value"
+else bad "audit missed invalid adapter" "$out"; fi
+
+out=$(run 'm2x audit --invalid')
+if [ "$?" -eq 2 ]; then ok "audit rejects unknown options"; else bad "audit accepted unknown option" "$out"; fi
+
+out=$(run 'M2X_ASSUME_YES=1 m2x audit --sarif')
+if printf '%s' "$out" | node --input-type=module -e '
+import assert from "node:assert/strict";
+let raw = ""; for await (const chunk of process.stdin) raw += chunk;
+const report = JSON.parse(raw);
+assert.equal(report.version, "2.1.0");
+assert(report.runs[0].results.some(f => f.ruleId === "confirmation-bypassed" && f.level === "warning" && f.message.text));
+assert(!raw.includes("secret"));
+'; then ok "SARIF exports actual configuration findings without secrets"
+else bad "SARIF audit report failed" "$out"; fi
+
+for override in 0 false yes token-must-not-leak; do
+  out=$(run "FAKE_CONTEXT=production M2X_ASSUME_YES=$override m2x solo restart")
+  if [ "$?" -eq 1 ] && [[ "$out" == *refusing* && "$out" != *"RESTART t="* ]]; then
+    ok "override $override cannot authorize unattended production restart"
+  else bad "non-approval override authorized production restart" "$out"; fi
+done
 
 for f in mage2x.plugin.zsh _mage2x lib/core.zsh lib/rt-cli.zsh lib/rt-kube.zsh lib/catalog.zsh; do
   if zsh -n "$REPO/$f" 2>/dev/null; then ok "$f parses"; else bad "$f has a syntax error"; fi

@@ -36,8 +36,10 @@ who can run `m2x` can run `kubectl` directly. Treat it as ergonomics with a
 safety catch; RBAC remains the security boundary.
 
 `M2X_ASSUME_YES=1` disables the prompt by design, for automation. A destructive
-verb with no terminal attached is refused rather than executed, so a script that
-inherits the variable by accident still cannot silently restart production.
+verb with no terminal attached is refused unless the override is exactly `1`.
+Values such as `0` or `false` do not grant approval. An inherited `1` still
+permits unattended operations; `m2x audit`
+reports this condition without running a command or printing the variable value.
 
 ### No eval, no shell interpolation of target names
 

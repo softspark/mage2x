@@ -4,9 +4,9 @@ category: procedures
 section: procedures
 service: mage2x
 tags: [sop, quality-gate, pre-commit, shellcheck, tests, adapters]
-version: "1.0.0"
+version: "1.4.0"
 created: "2026-08-28"
-last_updated: "2026-08-28"
+last_updated: "2026-09-06"
 description: "Checks that must pass before every commit to mage2x, including the adapter-contract check that catches a half-written runtime."
 ---
 
