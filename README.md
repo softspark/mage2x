@@ -7,7 +7,7 @@
 [![npm](https://img.shields.io/npm/v/@softspark/mage2x)](https://www.npmjs.com/package/@softspark/mage2x)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-## What's New in v1.4.0 (release candidate)
+## What's New in v1.4.0
 
 - `m2x audit` inspects local runtime selection and production-guard configuration.
 - `--json` and `--sarif` export findings without contacting engines or revealing environment values.

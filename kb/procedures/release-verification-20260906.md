@@ -29,9 +29,9 @@ only `echo MAGE2X_PUBLISHED_READ_OK` in the existing rag-mcp-core container,
 using its root account; it returned the exact marker. No runtime mutation ran.
 The previous complete 1.3.1 installation run remains recorded in the SOP.
 
-## Candidate status
+## Pre-release validation
 
-Version 1.4.0 is prepared locally and **has not been published**. Its new
+Version 1.4.0 was validated locally before publication. Its new
 audit commands are tested against real temporary filesystem/configuration
 fixtures, including secret redaction and SARIF output. Existing text behavior
 is retained except for documented repairs.
