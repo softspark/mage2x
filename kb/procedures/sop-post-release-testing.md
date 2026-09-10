@@ -174,6 +174,7 @@ approval for deletion. The current shell's `HOME` was not changed.
 
 | Version | Date | Result |
 |---|---|---|
+| 2.0.0 | 2026-09-10 | Passed: published package, installer, command registration, production guard, Docker echo, registry signature and provenance attestation. See [verification record](release-verification-20260910.md). |
 | 1.3.1 | 2026-09-03 | Pass, first run of this SOP. Phases 1-7 green: installer links and refuses a real directory, the published package carries the whole adapter contract (24/24), the guard refuses a production restart and leaves reads alone, docker lists 26 targets and `exec` prints `ok`, provenance verifies with a registry signature and an attestation, and nothing outside `files` shipped. Completion returned 25 targets on a host with `timeout` present, which is the release. Two notes: Phase 6's `npm audit signatures` needed a project with a lockfile and is now written that way, and Phase 5's `exec` fails on a container with no `www-data` — the documented `M2X_APP_USER` default, not a defect. |
 
 ## Verification on 2026-09-06
