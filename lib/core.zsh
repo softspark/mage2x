@@ -77,7 +77,7 @@ _m2x_audit() {
   local -a findings
   if (( $# )); then
     [[ $# == 1 && ( "$1" == --json || "$1" == --sarif ) ]] || {
-      _m2x_err 'usage: m2x audit [--json|--sarif]'; return 2
+      _m2x_err 'usage: m2d audit [--json|--sarif]'; return 2
     }
     format=${1#--}
   fi

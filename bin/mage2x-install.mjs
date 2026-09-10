@@ -95,8 +95,9 @@ async function install(assumeYes) {
   console.log(`
 ${green('Next:')}
   exec zsh                    reload the shell
-  m2x                         list targets in the detected runtime
-  m2x <target> shell          open a shell in one`);
+  m2d                         list Docker containers
+  m2d <target> shell          open a shell in one
+  m2p / m2k                   available when podman / kubectl is on PATH`);
 }
 
 function uninstall() {
@@ -110,8 +111,7 @@ function uninstall() {
   }
   unlinkSync(PLUGIN_DIR);
   console.log(`${green('v')} unlinked ${dim(PLUGIN_DIR)}`);
-  console.log(`${yellow('!')} left in place: the plugins=(...) entry in ~/.zshrc,`);
-  console.log(`   ~/.config/git/{workspaces.conf,hooks/} and every ~/.gitconfig-<workspace>`);
+  console.log(`${yellow('!')} left in place: the plugins=(...) entry in ~/.zshrc`);
 }
 
 const [, , cmd = 'install', ...rest] = process.argv;
@@ -136,10 +136,11 @@ switch (cmd) {
   npx @softspark/mage2x uninstall         remove the link
   npx @softspark/mage2x path              print the plugin directory
 
-The shell command itself (m2x) lives in the zsh plugin and is available once
-the shell is reloaded. This installer only links the plugin into Oh My Zsh;
-servers deployed by configuration management clone the repository directly and
-never need Node at all.`);
+The shell command m2d lives in the zsh plugin and selects Docker. Reload the
+shell to load it; m2p and m2k also appear when podman and kubectl are on PATH.
+Reload again after installing or removing either CLI. This installer links
+the plugin into Oh My Zsh. Servers deployed by configuration management
+clone the repository directly and never need Node at all.`);
     break;
   default:
     fail(`unknown command '${cmd}' (see: npx @softspark/mage2x help)`);

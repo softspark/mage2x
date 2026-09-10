@@ -7,6 +7,24 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.0.0 -- Explicit runtime commands and cleaner completion (2026-09-10)
+
+### Removed
+- **Remove `m2x`.** Use `m2d` for Docker, `m2p` for Podman or `m2k` for Kubernetes. Scripts using auto-detection must choose their runtime explicitly.
+
+### Changed
+- Replace the public `m2x` command with `m2d`, which selects Docker.
+- Register `m2p` and `m2k` only when `podman` and `kubectl` are on PATH at plugin load. Reload the shell after installing or removing either CLI.
+- Hide `M2X_*` configuration names from command-position TAB while preserving assignments and variable expansion completion.
+- Retain explicit `--runtime` overrides and the existing `M2X_*` environment names.
+
+### Fixed
+- Keep runtime selection local to each invocation instead of overwriting the shell's `M2X_RUNTIME`.
+- Reject `--runtime` without an adapter name instead of looping in argument parsing.
+- Complete targets from the final explicit runtime override, matching command dispatch.
+
+---
+
 ## v1.4.0 -- Local audits and explicit production confirmation (2026-09-06)
 
 - Add read-only local configuration audits in text, JSON and SARIF 2.1.0.

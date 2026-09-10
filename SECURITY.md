@@ -32,13 +32,13 @@ tokens, no kubeconfig parsing beyond the context name, and no secrets of its own
 ### The guard is a speed bump, not a permission model
 
 The production confirmation exists to stop a mistake, not an attacker. Anyone
-who can run `m2x` can run `kubectl` directly. Treat it as ergonomics with a
+who can run `m2k` can run `kubectl` directly. Treat it as ergonomics with a
 safety catch; RBAC remains the security boundary.
 
 `M2X_ASSUME_YES=1` disables the prompt by design, for automation. A destructive
 verb with no terminal attached is refused unless the override is exactly `1`.
 Values such as `0` or `false` do not grant approval. An inherited `1` still
-permits unattended operations; `m2x audit`
+permits unattended operations; `m2d audit`
 reports this condition without running a command or printing the variable value.
 
 ### No eval, no shell interpolation of target names

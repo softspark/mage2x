@@ -42,7 +42,7 @@ _m2x_catalog_run() {
 
   case "$verb" in
     mage)
-      (( $# )) || { _m2x_err "usage: m2x <target> mage <magento-command>"; return 0 }
+      (( $# )) || { _m2x_err "usage: m2d <target> mage <magento-command>"; return 0 }
       _m2x_cat_mage "$rt" "$target" "$@" ;;
     magento)
       _m2x_${rt}_exec "$target" "$M2X_APP_USER" "$M2X_MAGENTO_BIN" list ;;

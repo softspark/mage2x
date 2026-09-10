@@ -95,7 +95,7 @@ jobs:
         run: |
           zsh -n dist/mage2x.plugin.zsh
           zsh -c 'source ./dist/mage2x.plugin.zsh
-                  (( $+functions[m2x] )) || { print "m2x missing"; exit 1 }
+                  (( $+functions[m2d] )) || { print "m2d missing"; exit 1 }
                   for rt in docker podman kube; do
                     for v in available context list exec shell logs restart forward; do
                       (( $+functions[_m2x_${rt}_${v}] )) || { print "missing _m2x_${rt}_${v}"; exit 1 }

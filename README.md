@@ -7,12 +7,12 @@
 [![npm](https://img.shields.io/npm/v/@softspark/mage2x)](https://www.npmjs.com/package/@softspark/mage2x)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-## What's New in v1.4.0
+## What's New in v2.0.0
 
-- `m2x audit` inspects local runtime selection and production-guard configuration.
-- `--json` and `--sarif` export findings without contacting engines or revealing environment values.
-- Tests isolate Zsh startup configuration so local PATH customizations cannot bypass fake engines.
-- Only the exact `M2X_ASSUME_YES=1` value bypasses production confirmation; `0` and `false` do not authorize an unattended restart.
+- **Breaking:** `m2d` replaces `m2x` and selects Docker. Update scripts to use `m2d`, `m2p` or `m2k` for their intended runtime.
+- `m2p` and `m2k` appear only when their CLI is installed.
+- Command-position TAB omits `M2X_*` variables; variable expansion completion still works.
+- Runtime overrides stay local to each invocation, and a missing `--runtime` value is rejected.
 
 ## Table of Contents
 
@@ -70,7 +70,7 @@ template — use the generated build:
 
 ```bash
 curl -fsSL -o mage2x.plugin.zsh \
-  https://raw.githubusercontent.com/softspark/mage2x/v1.3.0/dist/mage2x.plugin.zsh
+  https://raw.githubusercontent.com/softspark/mage2x/v2.0.0/dist/mage2x.plugin.zsh
 ```
 
 Pin the tag rather than tracking a branch: the point of shipping a file is that
@@ -94,21 +94,21 @@ Node.js 18+ only for the npm installer.
 ## Usage
 
 ```bash
-m2x                          # what can I reach from here?
-m2x checkout shell           # interactive shell
-m2x checkout cache           # magento cache:clean
-m2x checkout mage indexer:status
-m2x checkout logs -f
-m2x context                  # which runtime, which context, is it production?
+m2d                          # Docker containers
+m2d checkout shell           # interactive shell
+m2d checkout cache           # magento cache:clean
+m2d checkout mage indexer:status
+m2d checkout logs -f
+m2d context                  # Docker context and production classification
 ```
 
 On a cluster:
 
 ```bash
-m2x --runtime kube                       # pods across all namespaces
-m2x shop/web-7d9f shell
-m2x shop/web-7d9f:php-fpm mage upgrade
-m2x shop/web-7d9f forward 3306:3306
+m2k                          # pods across all namespaces
+m2k shop/web-7d9f shell
+m2k shop/web-7d9f:php-fpm mage upgrade
+m2k shop/web-7d9f forward 3306:3306
 ```
 
 ## Targets
@@ -144,20 +144,24 @@ x 'ph' is ambiguous - refusing to guess
 
 ### Pinning the engine
 
-| Command | Runtime |
-|---|---|
-| `m2x` | detected |
-| `m2d` | docker |
-| `m2p` | podman |
-| `m2k` | kubectl |
+| Command | Runtime | Available in the shell |
+|---|---|---|
+| `m2d` | docker | always |
+| `m2p` | podman | when `podman` is on PATH at plugin load |
+| `m2k` | kubectl | when `kubectl` is on PATH at plugin load |
 
-All four take the same arguments. Auto-detection is right when only one engine
-is present; with docker running and a kubeconfig loaded it is a coin toss, so
-say which one you mean before anything destructive.
+`m2d` replaces the former `m2x` command and selects Docker. All three commands
+take the same arguments; an explicit `--runtime` overrides their engine pin.
+Reload the shell with `exec zsh` after installing or removing an engine CLI to
+refresh the commands and their completions. Registration checks the executable,
+so a stopped daemon or an unreachable cluster does not hide its command.
+
+Command-position TAB omits the `M2X_*` configuration variables. They remain
+available for assignments and variable expansion, including `$M2X_<TAB>`.
 
 Magento shortcuts: `cache`, `cache-flush`, `reindex`, `upgrade`, `di`, `deploy`,
 `mode`, `cron`, `maint-on`, `maint-off`. Anything else goes through
-`m2x <target> mage <command>`. Also available: `magento`, `report`, `applog`,
+`m2d <target> mage <command>`. Also available: `magento`, `report`, `applog`,
 `composer`, `redis-flush`, `varnish-purge`, `varnish-stat`.
 
 **Inside a project checkout, the project's Makefile is the better tool.** It
@@ -166,7 +170,7 @@ case the Makefile cannot serve: a server, or any host without the project tree.
 
 ## Local audit
 
-Run `m2x audit --json` or `m2x audit --sarif` to inspect local settings without
+Run `m2d audit --json` or `m2d audit --sarif` to inspect local settings without
 contacting an engine. This reports confirmation bypasses, broken guard settings,
 unknown adapters and missing binaries. It does not establish remote reachability.
 See the [audit contract](kb/reference/configuration.md#audit-contract).
@@ -197,7 +201,7 @@ guard refuses every command, rather than concluding that nothing is destructive.
 
 | Variable | Effect |
 |---|---|
-| `M2X_RUNTIME` | force `docker`, `podman` or `kube` instead of detecting |
+| `M2X_RUNTIME` | compatible runtime setting; command pins take precedence, use `--runtime` to override |
 | `M2X_KUBE_NS` | default namespace, and restrict listing to it |
 | `M2X_APP_USER` | user for application commands (default `www-data`) |
 | `M2X_MAGENTO_BIN` | path to the Magento CLI (default `bin/magento`) |
@@ -211,7 +215,7 @@ by the local audit and do not grant approval.
 ## Architecture
 
 ```
-mage2x.plugin.zsh     entry point: argument parsing, verb dispatch, m2d shim
+mage2x.plugin.zsh     internal dispatch and m2d/m2p/m2k registration
 _mage2x               completion over live targets
 lib/
   core.zsh            runtime selection, target resolution, production guard

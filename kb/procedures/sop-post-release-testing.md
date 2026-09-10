@@ -4,57 +4,67 @@ category: procedures
 section: procedures
 service: mage2x
 tags: [sop, testing, smoke-test, provenance, npm, post-release, runtimes]
-version: "1.4.0"
+version: "2.0.0"
 created: "2026-08-28"
-last_updated: "2026-09-06"
+last_updated: "2026-09-10"
 description: "Smoke-test a published @softspark/mage2x release from npm in an isolated HOME, including the production guard and at least one real container runtime."
 ---
 
 # SOP: Post-Release Testing
 
-Run once `publish.yml` goes green. Everything happens under a throwaway `HOME`.
-Open a fresh shell afterwards — `HOME` is overridden for the duration.
+Run once `publish.yml` goes green. Use a throwaway home directory through
+command-scoped `HOME` values so the current shell retains its normal home.
 
 A fresh package answers `404` from the registry for a minute or two after a
 successful publish. Poll rather than diagnose:
 
 ```bash
-until curl -sfo /dev/null https://registry.npmjs.org/@softspark%2Fmage2x; do sleep 20; done
+RELEASE_VERSION=2.0.0
+for attempt in 1 2 3; do
+  printf 'Registry check %s for %s\n' "$attempt" "$RELEASE_VERSION"
+  if npm view "@softspark/mage2x@$RELEASE_VERSION" version; then break; fi
+  if [ "$attempt" -eq 3 ]; then
+    printf 'Three consecutive failures; inspect the publish workflow before retrying.\n'
+    break
+  fi
+  sleep 60
+done
 ```
 
 ## Phase 1 — isolated install
 
 ```bash
-export SMOKE=$(mktemp -d)
-export HOME="$SMOKE/home"
-mkdir -p "$HOME"
-npm install -g --prefix "$SMOKE/npm" @softspark/mage2x@X.Y.Z
+SMOKE=$(mktemp -d)
+SMOKE_HOME="$SMOKE/home"
+mkdir -p "$SMOKE_HOME"
+HOME="$SMOKE_HOME" npm install -g --prefix "$SMOKE/npm" "@softspark/mage2x@$RELEASE_VERSION"
 ```
 
 ## Phase 2 — installer
 
 ```bash
-"$SMOKE/npm/bin/mage2x-install" path
-ZSH_CUSTOM="$HOME/omz" "$SMOKE/npm/bin/mage2x-install" install --yes
-test -L "$HOME/omz/plugins/mage2x" || echo "FAIL: plugin not linked"
+HOME="$SMOKE_HOME" "$SMOKE/npm/bin/mage2x-install" path
+HOME="$SMOKE_HOME" ZSH_CUSTOM="$SMOKE_HOME/omz" "$SMOKE/npm/bin/mage2x-install" install --yes
+test -L "$SMOKE_HOME/omz/plugins/mage2x" || echo "FAIL: plugin not linked"
 ```
 
-Replace the symlink with a real directory and confirm the second run **refuses**
-rather than deleting it. With no `~/.zshrc`, it must say so and carry on.
+Use a second throwaway `ZSH_CUSTOM` directory with an existing real
+`plugins/mage2x` directory and confirm installation **refuses** to replace it.
+With no `~/.zshrc`, it must say so and carry on.
 
 ## Phase 3 — the plugin loads and dispatches
 
 ```bash
-PLUG="$HOME/omz/plugins/mage2x/mage2x.plugin.zsh"
-zsh -c "source '$PLUG'; m2x --help"
-zsh -c "source '$PLUG'; m2x context"
+PLUG="$SMOKE_HOME/omz/plugins/mage2x/mage2x.plugin.zsh"
+HOME="$SMOKE_HOME" zsh -c "source '$PLUG'; m2d --help"
+HOME="$SMOKE_HOME" zsh -c "source '$PLUG'; m2d context"
 ```
 
 Verify the adapter contract in the *published* package, not the checkout — a
 file missing from `files` in `package.json` breaks exactly here:
 
 ```bash
-zsh -c "source '$PLUG'
+HOME="$SMOKE_HOME" zsh -c "source '$PLUG'
   for rt in docker podman kube; do
     for v in available context list exec shell logs restart forward; do
       (( \$+functions[_m2x_\${rt}_\${v}] )) || print \"MISSING _m2x_\${rt}_\${v}\"
@@ -77,18 +87,22 @@ _m2x_fake_exec()      { local t=$1 u=$2; shift 2; print -r -- "EXEC $t $*" }
 FAKE
 
 # ambiguity is refused
-zsh -c "source '$SMOKE/fake.zsh'; source '$PLUG'; M2X_RUNTIME=fake m2x we exec true" 2>&1 \
+HOME="$SMOKE_HOME" zsh -c "source '$SMOKE/fake.zsh'; source '$PLUG'; m2d --runtime fake we exec true" 2>&1 \
   | grep -q ambiguous && echo "OK ambiguity" || echo "FAIL ambiguity"
 
 # destructive verb on a production-looking context, no tty
-zsh -c "source '$SMOKE/fake.zsh'; source '$PLUG'
-        FAKE_CONTEXT=k8s:acme-production M2X_RUNTIME=fake m2x web restart" </dev/null 2>&1 \
+HOME="$SMOKE_HOME" zsh -c "source '$SMOKE/fake.zsh'; source '$PLUG'
+        FAKE_CONTEXT=k8s:acme-production m2d --runtime fake web restart" </dev/null 2>&1 \
   | grep -q refusing && echo "OK guard" || echo "FAIL guard"
 
 # reads are never guarded
-zsh -c "source '$SMOKE/fake.zsh'; source '$PLUG'
-        FAKE_CONTEXT=k8s:acme-production M2X_RUNTIME=fake m2x web exec true" </dev/null 2>&1 \
-  | grep -q PRODUCTION && echo "FAIL: read prompted" || echo "OK read unguarded"
+READ_OUTPUT=$(HOME="$SMOKE_HOME" zsh -c "source '$SMOKE/fake.zsh'; source '$PLUG'
+        FAKE_CONTEXT=k8s:acme-production m2d --runtime fake web exec true" </dev/null 2>&1)
+if [ "$?" -eq 0 ] && printf '%s\n' "$READ_OUTPUT" | grep -qx 'EXEC web true'; then
+  echo "OK read unguarded"
+else
+  echo "FAIL: read did not execute"
+fi
 ```
 
 ## Phase 5 — one real runtime
@@ -97,9 +111,15 @@ The fake adapter proves the logic; it proves nothing about the engines. Run at
 least one for real, on a container you own:
 
 ```bash
-zsh -c "source '$PLUG'; m2x"                      # lists containers
-zsh -c "source '$PLUG'; m2x <name> exec echo ok"  # prints ok
+HOME="$SMOKE_HOME" zsh -c "source '$PLUG'; m2d"                      # lists Docker containers
+HOME="$SMOKE_HOME" zsh -c "source '$PLUG'; m2d <name> exec echo ok"  # replace <name>; prints ok
 ```
+
+`m2d` selects Docker. Use `m2p` for Podman or `m2k` for kubectl; these shortcuts
+exist only when their CLI is installed. `m2x` is removed in 2.0.0. Confirm the
+loaded shell has no `m2x` function and that `m2p`/`m2k` availability matches the
+installed CLIs. Fake adapter tests need explicit `--runtime fake`, because
+`M2X_RUNTIME` does not override the command's selected runtime.
 
 On a cluster, also check that `restart` names the workload it is about to roll
 and says it affects every replica — without confirming it.
@@ -107,7 +127,7 @@ and says it affects every replica — without confirming it.
 ## Phase 6 — supply chain (mandatory)
 
 ```bash
-npm view "@softspark/mage2x@X.Y.Z" --json | python3 -c \
+HOME="$SMOKE_HOME" npm view "@softspark/mage2x@$RELEASE_VERSION" --json | python3 -c \
   "import json,sys; d=json.load(sys.stdin); \
    assert d['dist']['attestations']['provenance']['predicateType']=='https://slsa.dev/provenance/v1'; \
    print('PROVENANCE OK')"
@@ -119,10 +139,13 @@ dependencies to audit" and exits non-zero, which reads like a failed gate rather
 than the wrong working directory. Give it a throwaway project:
 
 ```bash
-mkdir -p "$SMOKE/auditproj" && cd "$SMOKE/auditproj"
-npm init -y >/dev/null
-npm install "@softspark/mage2x@X.Y.Z" --ignore-scripts
-npm audit signatures --registry https://registry.npmjs.org
+mkdir -p "$SMOKE/auditproj"
+(
+  cd "$SMOKE/auditproj" || exit
+  HOME="$SMOKE_HOME" npm init -y >/dev/null
+  HOME="$SMOKE_HOME" npm install "@softspark/mage2x@$RELEASE_VERSION" --ignore-scripts
+  HOME="$SMOKE_HOME" npm audit signatures --registry https://registry.npmjs.org
+)
 ```
 
 Both lines of the result matter: a verified **registry signature** says the
@@ -132,7 +155,7 @@ tarball is the one npm holds, and a verified **attestation** says CI built it.
 
 ```bash
 PKG="$SMOKE/npm/lib/node_modules/@softspark/mage2x"
-for f in mage2x.plugin.zsh _mage2x lib/core.zsh lib/rt-cli.zsh lib/rt-kube.zsh \
+for f in mage2x.plugin.zsh _mage2x dist/mage2x.plugin.zsh lib/core.zsh lib/rt-cli.zsh lib/rt-kube.zsh \
          lib/catalog.zsh bin/mage2x-install.mjs LICENSE NOTICE; do
   test -f "$PKG/$f" || echo "FAIL: missing $f"
 done
@@ -143,7 +166,9 @@ done
 
 ## Phase 8 — cleanup
 
-Delete `$SMOKE` and open a new shell.
+Keep `$SMOKE` until the release evidence has been recorded. Remove it only after
+reviewing its contents and verifying a backup of anything to retain, with explicit
+approval for deletion. The current shell's `HOME` was not changed.
 
 ## Run log
 

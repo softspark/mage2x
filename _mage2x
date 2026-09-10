@@ -1,7 +1,16 @@
-#compdef m2x m2d m2p m2k
+#compdef m2d m2p m2k
 # mage2x - completion over live targets in whichever runtime is detected.
 
 _m2x_comp_runtime() {
+  local i rt
+  for (( i = 2; i < CURRENT; i++ )); do
+    if [[ ${words[i]} == --runtime ]]; then
+      rt=${words[i+1]}
+      (( i++ ))
+    fi
+    [[ ${words[i]} == -- ]] && break
+  done
+  [[ -n "$rt" ]] && { print -r -- "$rt"; return }
   # The alias pins the runtime, so completion must ask the same engine the
   # command will use rather than whatever detection would pick.
   case ${words[1]} in
@@ -10,7 +19,6 @@ _m2x_comp_runtime() {
     m2k) print -r -- kube;   return ;;
   esac
   [[ -n "$M2X_RUNTIME" ]] && { print -r -- "$M2X_RUNTIME"; return }
-  local rt
   for rt in docker podman kube; do
     if (( $+functions[_m2x_${rt}_available] )); then
       _m2x_${rt}_available 2>/dev/null && { print -r -- "$rt"; return }

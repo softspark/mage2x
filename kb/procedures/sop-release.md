@@ -4,9 +4,9 @@ category: procedures
 section: procedures
 service: mage2x
 tags: [sop, release, npm, provenance, supply-chain, versioning, adapters]
-version: "1.4.0"
+version: "2.0.0"
 created: "2026-08-28"
-last_updated: "2026-09-06"
+last_updated: "2026-09-10"
 description: "Version bump, changelog, quality gates, supply-chain gates, tagging and npm publish for @softspark/mage2x."
 ---
 
@@ -33,8 +33,9 @@ definition of breaking. Widening the destructive-verb list counts.
 npm version --no-git-tag-version X.Y.Z
 ```
 
-`package.json` is the only file carrying a version; there is no companion
-manifest to keep in sync.
+`package.json` is the package version source. Update the current release metadata
+in affected KB documents, then regenerate the versioned standalone bundle with
+`npm run bundle`. Preserve version numbers in historical verification records.
 
 ## 3. Write the CHANGELOG entry
 
@@ -50,9 +51,10 @@ history belongs in the CHANGELOG.
 ## 5. Quality gates
 
 ```bash
-shellcheck tests/run.sh \
+shellcheck tests/run.sh scripts/bundle.sh \
   && node --check bin/mage2x-install.mjs \
-  && for f in mage2x.plugin.zsh _mage2x lib/*.zsh; do zsh -n "$f" || break; done \
+  && ./scripts/bundle.sh --check \
+  && (for f in mage2x.plugin.zsh _mage2x lib/*.zsh dist/mage2x.plugin.zsh; do zsh -n "$f" || exit; done) \
   && ./tests/run.sh
 ```
 
@@ -113,7 +115,7 @@ CI's registry check flips on its own — it reads the workflow rather than a fla
 npm pack --dry-run
 ```
 
-`lib/` (all four files), `bin/`, `mage2x.plugin.zsh`, `_mage2x`, `LICENSE` and
+`lib/`, `bin/`, `dist/mage2x.plugin.zsh`, `mage2x.plugin.zsh`, `_mage2x`, `LICENSE` and
 `NOTICE` must all be present. npm includes `LICENSE` automatically but **not**
 `NOTICE`, which is why it is listed explicitly in `files`.
 

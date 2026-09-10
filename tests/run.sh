@@ -52,11 +52,11 @@ run() {
 # --------------------------------------------------------------------------
 head_ "target resolution"
 
-out=$(run 'm2x solo exec echo hi')
+out=$(run 'm2d --runtime fake solo exec echo hi')
 case "$out" in *"t=solo"*) ok "an unambiguous fragment resolves" ;;
                *) bad "unambiguous fragment failed" "$out" ;; esac
 
-out=$(run 'm2x mysql exec echo hi')
+out=$(run 'm2d --runtime fake mysql exec echo hi')
 case "$out" in
   *"t=mysql u="*) ok "an exact name wins over a longer partial match" ;;
   *) bad "exact match lost to a partial one" "$out" ;;
@@ -64,7 +64,7 @@ esac
 
 # The incident this tool exists to prevent: a fragment matching a sidecar.
 # 'ph' rather than 'php', which is an exact name and must resolve.
-out=$(run 'm2x ph exec echo hi')
+out=$(run 'm2d --runtime fake ph exec echo hi')
 case "$out" in
   *ambiguous*) ok "an ambiguous fragment is refused" ;;
   *) bad "ambiguous fragment was resolved anyway" "$out" ;;
@@ -75,39 +75,39 @@ case "$out" in
   *) bad "refusal did not show candidates (stdout/stderr mix-up?)" "$out" ;;
 esac
 
-out=$(run 'm2x php exec echo hi')
+out=$(run 'm2d --runtime fake php exec echo hi')
 case "$out" in
   *"t=php u="*) ok "an exact name is not treated as ambiguous" ;;
   *) bad "exact name was refused as ambiguous" "$out" ;;
 esac
 
-out=$(run 'm2x nothing-like-this exec echo hi')
+out=$(run 'm2d --runtime fake nothing-like-this exec echo hi')
 case "$out" in *"no target matches"*) ok "an unmatched fragment is reported" ;;
                *) bad "unmatched fragment not reported" "$out" ;; esac
 
 # --------------------------------------------------------------------------
 head_ "production guard"
 
-out=$(run 'M2X_PROD=1 m2x solo exec echo hi')
+out=$(run 'M2X_PROD=1 m2d --runtime fake solo exec echo hi')
 case "$out" in
   *PRODUCTION*) bad "a read-only command prompted on production" ;;
   *"t=solo"*)   ok "read-only commands never prompt, even on production" ;;
   *) bad "read-only command failed on production" "$out" ;;
 esac
 
-out=$(run 'M2X_PROD=1 m2x solo restart' </dev/null)
+out=$(run 'M2X_PROD=1 m2d --runtime fake solo restart' </dev/null)
 case "$out" in
   *"refusing a destructive operation"*) ok "destructive verb is refused on production without a tty" ;;
   *) bad "destructive verb was not guarded" "$out" ;;
 esac
 
-out=$(run 'M2X_PROD=1 M2X_ASSUME_YES=1 m2x solo restart' </dev/null)
+out=$(run 'M2X_PROD=1 M2X_ASSUME_YES=1 m2d --runtime fake solo restart' </dev/null)
 case "$out" in
   *"RESTART t=solo"*) ok "M2X_ASSUME_YES allows automation through the guard" ;;
   *) bad "ASSUME_YES did not let the operation through" "$out" ;;
 esac
 
-out=$(run 'm2x solo restart' </dev/null)
+out=$(run 'm2d --runtime fake solo restart' </dev/null)
 case "$out" in
   *PRODUCTION*) bad "non-production context prompted" ;;
   *"RESTART t=solo"*) ok "non-production restart runs unprompted" ;;
@@ -115,13 +115,13 @@ case "$out" in
 esac
 
 # Context detection must read the context string, not a flag.
-out=$(run 'FAKE_CONTEXT=k8s:acme-production m2x solo restart' </dev/null)
+out=$(run 'FAKE_CONTEXT=k8s:acme-production m2d --runtime fake solo restart' </dev/null)
 case "$out" in
   *"refusing a destructive operation"*) ok "a production-looking context name triggers the guard" ;;
   *) bad "context pattern did not trigger the guard" "$out" ;;
 esac
 
-out=$(run 'FAKE_CONTEXT=k8s:acme-staging m2x solo restart' </dev/null)
+out=$(run 'FAKE_CONTEXT=k8s:acme-staging m2d --runtime fake solo restart' </dev/null)
 case "$out" in
   *"RESTART t=solo"*) ok "a staging context does not trigger the guard" ;;
   *) bad "staging context was treated as production" "$out" ;;
@@ -129,13 +129,13 @@ esac
 
 # A guard that cannot tell destructive from safe must stop, not wave everything
 # through. Emptying the list used to silently disable production protection.
-out=$(run 'FAKE_CONTEXT=k8s:acme-production; _M2X_DESTRUCTIVE=(); m2x solo restart')
+out=$(run 'FAKE_CONTEXT=k8s:acme-production; _M2X_DESTRUCTIVE=(); m2d --runtime fake solo restart')
 case "$out" in
   *"cannot run"*) ok "an emptied destructive list refuses instead of executing" ;;
   *) bad "an emptied destructive list let a production restart through" "$out" ;;
 esac
 
-out=$(run 'FAKE_CONTEXT=k8s:acme-production; _M2X_DESTRUCTIVE=oops; m2x solo restart')
+out=$(run 'FAKE_CONTEXT=k8s:acme-production; _M2X_DESTRUCTIVE=oops; m2d --runtime fake solo restart')
 case "$out" in
   *"cannot run"*) ok "a non-array destructive list refuses too" ;;
   *) bad "a scalar destructive list was accepted" "$out" ;;
@@ -144,10 +144,8 @@ esac
 # --------------------------------------------------------------------------
 head_ "parameter namespace"
 
-# zsh offers parameter names in command position, because `NAME=value cmd` is
-# legal there. So everything the plugin leaves in M2X_* is advertised by TAB as
-# though it were configuration. Only the documented knobs belong there; an
-# internal listed alongside them invites someone to set it.
+# Configuration stays available for assignments and variable expansion, even
+# though command-position completion hides these names.
 expected="M2X_APP_USER M2X_ASSUME_YES M2X_KUBE_NS M2X_MAGENTO_BIN M2X_PROD_PATTERNS M2X_RUNTIME"
 # shellcheck disable=SC2016  # $-expansion belongs to the inner zsh, not here
 actual=$(run 'print -l ${(ko)parameters[(I)M2X_*]}' | tr '\n' ' ' | sed 's/ *$//')
@@ -166,41 +164,140 @@ ok "every exposed knob is documented"
 # --------------------------------------------------------------------------
 head_ "catalogue"
 
-out=$(run 'm2x solo cache')
+out=$(run 'm2d --runtime fake solo cache')
 case "$out" in
   *"cmd=bin/magento cache:clean"*) ok "a shortcut maps to the magento CLI" ;;
   *) bad "shortcut did not map correctly" "$out" ;;
 esac
 
-out=$(run 'm2x solo mage indexer:status')
+out=$(run 'm2d --runtime fake solo mage indexer:status')
 case "$out" in
   *"cmd=bin/magento indexer:status"*) ok "mage passes an arbitrary command through" ;;
   *) bad "mage passthrough broken" "$out" ;;
 esac
 
-out=$(run 'M2X_APP_USER=someone m2x solo cache')
+out=$(run 'M2X_APP_USER=someone m2d --runtime fake solo cache')
 case "$out" in
   *"u=someone"*) ok "M2X_APP_USER is honoured" ;;
   *) bad "M2X_APP_USER ignored" "$out" ;;
 esac
 
-out=$(run 'm2x solo not-a-verb')
+out=$(run 'm2d --runtime fake solo not-a-verb')
 case "$out" in *"unknown verb"*) ok "an unknown verb is rejected" ;;
                *) bad "unknown verb was accepted" "$out" ;; esac
 
 # --------------------------------------------------------------------------
 head_ "listing and context"
 
-out=$(run 'm2x')
+out=$(run 'm2d --runtime fake')
 case "$out" in *mysql-backup*) ok "no arguments lists the targets" ;;
                *) bad "bare invocation did not list targets" "$out" ;; esac
 
-out=$(run 'FAKE_CONTEXT=k8s:prod-eu m2x context')
+out=$(run 'FAKE_CONTEXT=k8s:prod-eu m2d --runtime fake context')
 case "$out" in *production*) ok "context reports production status" ;;
                *) bad "context did not report production" "$out" ;; esac
 
 # --------------------------------------------------------------------------
 head_ "runtime aliases"
+
+# Narrow PATH inside zsh so host-installed engines cannot affect this matrix.
+# Executables record calls: loading the plugin must never contact an engine.
+for engine_set in none docker podman kubectl all; do
+  ENGINE_DIR="$SANDBOX/engines-$engine_set"
+  ENGINE_LOG="$SANDBOX/engines-$engine_set.log"
+  mkdir -p "$ENGINE_DIR"
+  case "$engine_set" in
+    none) engines=""; expected_commands="m2d" ;;
+    docker) engines="docker"; expected_commands="m2d" ;;
+    podman) engines="podman"; expected_commands="m2d m2p" ;;
+    kubectl) engines="kubectl"; expected_commands="m2d m2k" ;;
+    all) engines="docker podman kubectl"; expected_commands="m2d m2p m2k" ;;
+  esac
+  for engine in $engines; do
+    cat > "$ENGINE_DIR/$engine" <<'ENGINE_PRESENCE'
+#!/bin/sh
+printf 'called\n' >> "$ENGINE_LOG"
+exit 1
+ENGINE_PRESENCE
+    chmod +x "$ENGINE_DIR/$engine"
+  done
+  for plugin in mage2x.plugin.zsh dist/mage2x.plugin.zsh; do
+    out=$(ENGINE_LOG="$ENGINE_LOG" zsh -f -c '
+      PATH=$1
+      source "$2"
+      present=()
+      for name in m2d m2p m2k m2x; do
+        (( $+functions[$name] )) && present+=($name)
+      done
+      print -r -- "${(j: :)present}"
+    ' -- "$ENGINE_DIR" "$REPO/$plugin" 2>&1)
+    if [ "$out" = "$expected_commands" ]; then
+      ok "$plugin exposes only installed engine commands ($engine_set)"
+    else
+      bad "$plugin has the wrong command surface ($engine_set)" "$out"
+    fi
+  done
+  if [ ! -s "$ENGINE_LOG" ]; then
+    ok "loading with $engine_set does not probe an engine"
+  else
+    bad "loading with $engine_set contacted an engine"
+  fi
+done
+
+out=$(run 'm2d --runtime docker --runtime fake solo exec echo hi')
+case "$out" in
+  *"EXEC t=solo"*) ok "the final explicit runtime overrides the m2d default" ;;
+  *) bad "the final runtime flag did not win" "$out" ;;
+esac
+
+# shellcheck disable=SC2016  # Expansion belongs to the inner zsh.
+out=$(run 'M2X_RUNTIME=ambient; m2d --runtime fake solo exec echo hi; print -r -- "after=$M2X_RUNTIME"')
+if [[ "$out" == *"EXEC t=solo"* && "$out" == *"after=ambient"* ]]; then
+  ok "an explicit runtime does not overwrite the ambient configuration"
+else
+  bad "the command changed M2X_RUNTIME beyond its invocation" "$out"
+fi
+
+for invalid_runtime in '--runtime' '--runtime ""' '--runtime --help'; do
+  out=$(run "m2d $invalid_runtime")
+  if [ "$?" -eq 2 ] && [[ "$out" == *"--runtime requires an adapter name"* ]]; then
+    ok "an invalid runtime argument is rejected ($invalid_runtime)"
+  else
+    bad "an invalid runtime argument was accepted ($invalid_runtime)" "$out"
+  fi
+done
+
+for plugin in mage2x.plugin.zsh dist/mage2x.plugin.zsh; do
+  out=$(zsh -f -c '
+    PATH=$1
+    source "$3"
+    m2x() { print stale }
+    PATH=$2
+    source "$3"
+    present=()
+    for name in m2d m2p m2k m2x; do
+      (( $+functions[$name] )) && present+=($name)
+    done
+    print -r -- "${(j: :)present}"
+  ' -- "$SANDBOX/engines-all" "$SANDBOX/engines-none" "$REPO/$plugin" 2>&1)
+  if [ "$out" = m2d ]; then
+    ok "$plugin removes retired and unavailable commands on reload"
+  else
+    bad "$plugin retained stale commands on reload" "$out"
+  fi
+done
+
+out=$(zsh -f -c '
+  PATH=$1
+  source "$2"
+  M2X_RUNTIME=podman
+  m2d solo exec echo hi
+' -- "$SANDBOX/engines-none" "$REPO/mage2x.plugin.zsh" 2>&1)
+if [[ "$out" == *docker* && "$out" != *"tried docker, podman, kubectl"* ]]; then
+  ok "m2d reports missing Docker without falling back to other engines"
+else
+  bad "m2d did not report its pinned missing engine" "$out"
+fi
 
 # Each alias pins its engine, so on a host without that engine it must fail
 # rather than quietly using whichever one happens to be present.
@@ -236,7 +333,7 @@ mkdir -p "$MHOME/omz/plugins"
 
 out=$(zsh -c "
   source '$REPO/mage2x.plugin.zsh'
-  ZSH_CUSTOM='$MHOME/omz' HOME='$MHOME' m2x migrate" 2>&1)
+  ZSH_CUSTOM='$MHOME/omz' HOME='$MHOME' m2d --runtime fake migrate" 2>&1)
 case "$out" in
   *"nothing to migrate"*) ok "migrate is a no-op with nothing to retire" ;;
   *) bad "migrate misbehaved on a clean host" "$out" ;;
@@ -247,7 +344,7 @@ mkdir -p "$MHOME/omz/plugins/mage2docker"
 echo local-edit > "$MHOME/omz/plugins/mage2docker/thing.zsh"
 out=$(zsh -c "
   source '$REPO/mage2x.plugin.zsh'
-  ZSH_CUSTOM='$MHOME/omz' HOME='$MHOME' m2x migrate" 2>&1)
+  ZSH_CUSTOM='$MHOME/omz' HOME='$MHOME' m2d --runtime fake migrate" 2>&1)
 case "$out" in
   *"plain directory"*) ok "migrate refuses a directory it did not create" ;;
   *) bad "migrate touched a plain directory" "$out" ;;
@@ -266,7 +363,7 @@ git -C "$MHOME/omz/plugins/mage2docker" -c user.email=t@example.test -c user.nam
     commit -q --allow-empty -m x --no-verify 2>/dev/null
 out=$(zsh -c "
   source '$REPO/mage2x.plugin.zsh'
-  ZSH_CUSTOM='$MHOME/omz' HOME='$MHOME' m2x migrate" 2>&1)
+  ZSH_CUSTOM='$MHOME/omz' HOME='$MHOME' m2d --runtime fake migrate" 2>&1)
 if [ -d "$MHOME/omz/plugins/mage2docker" ]; then
   bad "migrate left a checkout behind" "$out"
 else
@@ -279,7 +376,7 @@ mkdir -p "$MHOME/omz/plugins/mage2docker"
 git -C "$MHOME/omz/plugins/mage2docker" init -q
 out=$(zsh -c "
   source '$REPO/mage2x.plugin.zsh'
-  ZSH_CUSTOM='$MHOME/omz' HOME='$MHOME' m2x migrate" 2>&1)
+  ZSH_CUSTOM='$MHOME/omz' HOME='$MHOME' m2d --runtime fake migrate" 2>&1)
 line=$(grep '^plugins=' "$MHOME/.zshrc")
 case "$line" in
   *mage2docker*) bad "the retired plugin is still in plugins=()" "$line" ;;
@@ -310,6 +407,46 @@ if [ "$out" = "fallback|bare" ]; then ok "a bare pod name falls back to the name
 # --------------------------------------------------------------------------
 head_ "completion"
 
+# Completion must use the same final override as command dispatch.
+# shellcheck disable=SC2016
+out=$(run 'source "'"$REPO"'/_mage2x" 2>/dev/null
+  words=(m2d --runtime podman --runtime fake ""); CURRENT=6
+  _m2x_comp_runtime')
+if [ "$out" = fake ]; then
+  ok "completion uses the final explicit runtime"
+else
+  bad "completion differs from runtime dispatch" "$out"
+fi
+
+# shellcheck disable=SC2016
+out=$(run 'source "'"$REPO"'/_mage2x" 2>/dev/null
+  words=(m2d -- --runtime fake ""); CURRENT=5
+  _m2x_comp_runtime')
+if [ "$out" = docker ]; then
+  ok "completion ignores runtime flags after the option terminator"
+else
+  bad "completion parsed a runtime after the option terminator" "$out"
+fi
+
+for plugin in mage2x.plugin.zsh dist/mage2x.plugin.zsh; do
+  out=$(zsh -f -c '
+    zstyle ":completion:*:-command-:*:parameters" ignored-patterns "KEEP_*"
+    zstyle ":completion:*:parameters" ignored-patterns "OTHER_*"
+    source "$1"
+    source "$1"
+    zstyle -a ":completion::complete:-command-::parameters" ignored-patterns command_patterns
+    zstyle -a ":completion::complete:-parameter-::parameters" ignored-patterns variable_patterns
+    print -r -- "command=${(j: :)command_patterns}"
+    print -r -- "variable=${(j: :)variable_patterns}"
+    print -r -- "knob=${+parameters[M2X_RUNTIME]}"
+  ' -- "$REPO/$plugin" 2>&1)
+  if [[ "$out" == *"command=KEEP_* M2X_*"* && "$out" == *"variable=OTHER_*"* && "$out" == *"knob=1"* ]]; then
+    ok "$plugin hides configuration only in command completion and preserves styles on reload"
+  else
+    bad "$plugin lost existing patterns or changed variable completion" "$out"
+  fi
+done
+
 # _describe takes the NAME of an array. Passing a parenthesised literal makes
 # zsh split it on whitespace, so every word of every description turns into a
 # completion candidate — the user sees "a", "and", "the", "use" offered as
@@ -333,7 +470,7 @@ else
 fi
 
 # Dropping them from completion only holds if --help still carries them.
-help_out=$(run 'm2x --help')
+help_out=$(run 'm2d --runtime fake --help')
 for cmd in context migrate; do
   if printf '%s\n' "$help_out" | grep -qE "^  $cmd +[a-z]"; then
     ok "--help documents '$cmd'"
@@ -470,7 +607,7 @@ if [ -f "$REPO/dist/mage2x.plugin.zsh" ]; then
 
   # It must define everything, having inlined what the checkout would source.
   missing=$(zsh -c "source '$REPO/dist/mage2x.plugin.zsh'
-    (( \$+functions[m2x] )) || print m2x
+    (( \$+functions[m2d] )) || print m2d
     for rt in docker podman kube; do
       for v in available context list exec shell logs restart forward; do
         (( \$+functions[_m2x_\${rt}_\${v}] )) || print \"_m2x_\${rt}_\${v}\"
@@ -487,7 +624,7 @@ if [ -f "$REPO/dist/mage2x.plugin.zsh" ]; then
     source '$SANDBOX/fake.zsh'
     source '$REPO/dist/mage2x.plugin.zsh'
     M2X_RUNTIME=fake
-    m2x ph exec true" 2>&1)
+    m2d --runtime fake ph exec true" 2>&1)
   case "$out" in
     *ambiguous*) ok "the bundle refuses an ambiguous target too" ;;
     *) bad "the bundle behaves differently from the checkout" "$out" ;;
@@ -499,7 +636,7 @@ fi
 # --------------------------------------------------------------------------
 head_ "syntax"
 
-out=$(run 'M2X_ASSUME_YES=token-must-not-leak M2X_PROD=1 m2x audit --json')
+out=$(run 'M2X_ASSUME_YES=token-must-not-leak M2X_PROD=1 m2d --runtime fake audit --json')
 audit_code=$?
 if [ "$audit_code" -eq 1 ] && printf '%s' "$out" | node --input-type=module -e '
 import assert from "node:assert/strict";
@@ -515,24 +652,24 @@ else bad "JSON audit report failed" "$out"; fi
 
 if out=$(run '_m2x_fake_available() { print SHOULD_NOT_RUN; return 1 }
             _m2x_fake_context() { print SHOULD_NOT_RUN; return 1 }
-            M2X_ASSUME_YES= m2x audit --json') && [[ "$out" != *SHOULD_NOT_RUN* ]]; then
+            M2X_ASSUME_YES= m2d --runtime fake audit --json') && [[ "$out" != *SHOULD_NOT_RUN* ]]; then
   ok "audit never probes an engine or context even when unavailable"
 else bad "audit contacted the runtime" "$out"; fi
 
-out=$(run '_M2X_DESTRUCTIVE=(); M2X_PROD_PATTERNS=; m2x audit --json')
+out=$(run '_M2X_DESTRUCTIVE=(); M2X_PROD_PATTERNS=; m2d --runtime fake audit --json')
 if [ "$?" -eq 1 ] && [[ "$out" == *broken-production-guard* && "$out" == *empty-production-patterns* ]]; then
   ok "audit reports broken guard configuration"
 else bad "audit missed broken guard" "$out"; fi
 
-out=$(run 'M2X_RUNTIME=unknown-secret m2x audit --json')
+out=$(run 'M2X_RUNTIME=unknown-secret _m2x_dispatch audit --json')
 if [ "$?" -eq 1 ] && [[ "$out" == *unknown-runtime* && "$out" != *unknown-secret* ]]; then
   ok "audit reports unregistered adapters without exposing their value"
 else bad "audit missed invalid adapter" "$out"; fi
 
-out=$(run 'm2x audit --invalid')
+out=$(run 'm2d --runtime fake audit --invalid')
 if [ "$?" -eq 2 ]; then ok "audit rejects unknown options"; else bad "audit accepted unknown option" "$out"; fi
 
-out=$(run 'M2X_ASSUME_YES=1 m2x audit --sarif')
+out=$(run 'M2X_ASSUME_YES=1 m2d --runtime fake audit --sarif')
 if printf '%s' "$out" | node --input-type=module -e '
 import assert from "node:assert/strict";
 let raw = ""; for await (const chunk of process.stdin) raw += chunk;
@@ -544,7 +681,7 @@ assert(!raw.includes("secret"));
 else bad "SARIF audit report failed" "$out"; fi
 
 for override in 0 false yes token-must-not-leak; do
-  out=$(run "FAKE_CONTEXT=production M2X_ASSUME_YES=$override m2x solo restart")
+  out=$(run "FAKE_CONTEXT=production M2X_ASSUME_YES=$override m2d --runtime fake solo restart")
   if [ "$?" -eq 1 ] && [[ "$out" == *refusing* && "$out" != *"RESTART t="* ]]; then
     ok "override $override cannot authorize unattended production restart"
   else bad "non-approval override authorized production restart" "$out"; fi

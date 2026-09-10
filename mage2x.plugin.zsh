@@ -1,15 +1,14 @@
 # mage2x - run commands in a container workload, whatever runs it.
 #
-# One command across docker, podman and kubectl: `x` is whichever of them is in
-# front of you.
+# The command chooses the runtime: m2d for Docker, m2p for Podman, m2k for kubectl.
 #
-#   m2x                            list targets in the current runtime
-#   m2x <target> shell             interactive shell
-#   m2x <target> cache             magento cache:clean
-#   m2x <target> mage <cmd...>     any magento CLI command
-#   m2x <target> logs -f
-#   m2x <target> restart           guarded on production
-#   m2x --runtime kube prod/web:php shell
+#   m2d                            list Docker targets
+#   m2d <target> shell             interactive shell
+#   m2d <target> cache             magento cache:clean
+#   m2d <target> mage <cmd...>     any magento CLI command
+#   m2d <target> logs -f
+#   m2d <target> restart           guarded on production
+#   m2k prod/web:php shell
 #
 # Targets are matched on a fragment, but an ambiguous fragment is refused rather
 # than guessed: matching `mysql` against a `mysql-backup` sidecar instead of
@@ -26,10 +25,10 @@ unset _f
 _m2x_usage() {
   print -- "mage2x - run commands in a container workload, whatever runs it
 
-  m2x [--runtime docker|podman|kube] [<target> [<verb> [args...]]]
-  m2d / m2p / m2k       the same, pinned to docker / podman / kubectl
+  m2d [--runtime docker|podman|kube] [<target> [<verb> [args...]]]
+  m2p / m2k            Podman / kubectl, available when the CLI is installed
 
-  no arguments          list targets in the detected runtime
+  no arguments          list targets in the command's runtime
   <target> shell        interactive shell (\$M2X_APP_USER, default www-data)
   <target> root         interactive shell as root
   <target> exec <cmd>   run a command
@@ -111,14 +110,18 @@ _m2x_migrate() {
   print -P "\nreload the shell:  exec zsh"
 }
 
-m2x() {
+_m2x_dispatch() {
   emulate -L zsh
   local rt="" target="" verb="" resolved
   local -a rest
 
   while (( $# )); do
     case "$1" in
-      --runtime) rt="$2"; shift 2 ;;
+      --runtime)
+        (( $# >= 2 )) && [[ -n "$2" && "$2" != -* ]] || {
+          _m2x_err "--runtime requires an adapter name"; return 2
+        }
+        rt="$2"; shift 2 ;;
       -h|--help) _m2x_usage; return 0 ;;
       --) shift; rest+=("$@"); break ;;
       *) rest+=("$1"); shift ;;
@@ -128,7 +131,7 @@ m2x() {
 
   if [[ "${1:-}" == migrate ]]; then _m2x_migrate; return $?; fi
 
-  [[ -n "$rt" ]] && M2X_RUNTIME="$rt"
+  local M2X_RUNTIME="${rt:-$M2X_RUNTIME}"
   if [[ "${1:-}" == audit ]]; then shift; _m2x_audit "$@"; return $?; fi
   rt=$(_m2x_detect_runtime) || {
     # A pinned runtime has already reported precisely why it is unusable.
@@ -166,24 +169,36 @@ m2x() {
     shell)   _m2x_${rt}_shell "$resolved" "$M2X_APP_USER" "${1:-bash}" ;;
     root)    _m2x_${rt}_shell "$resolved" root "${1:-bash}" ;;
     sh)      _m2x_${rt}_shell "$resolved" "$M2X_APP_USER" sh ;;
-    exec)    (( $# )) || { _m2x_err "usage: m2x <target> exec <command...>"; return 2 }
+    exec)    (( $# )) || { _m2x_err "usage: m2d <target> exec <command...>"; return 2 }
              _m2x_${rt}_exec "$resolved" "$M2X_APP_USER" "$@" ;;
     logs)    _m2x_${rt}_logs "$resolved" "$@" ;;
     restart) _m2x_${rt}_restart "$resolved" ;;
-    forward) (( $# )) || { _m2x_err "usage: m2x <target> forward <local:remote>"; return 2 }
+    forward) (( $# )) || { _m2x_err "usage: m2k <target> forward <local:remote>"; return 2 }
              _m2x_${rt}_forward "$resolved" "$1" ;;
     context) print -r -- "$(_m2x_${rt}_context)" ;;
     *)
       _m2x_catalog_run "$rt" "$resolved" "$verb" "$@" && return 0
-      _m2x_err "unknown verb '$verb' (see: m2x --help)"
+      _m2x_err "unknown verb '$verb' (see: m2d --help)"
       return 2 ;;
   esac
 }
 
-# One alias per runtime, so the engine is chosen by which letter you type rather
-# than by a flag. Auto-detection is right when only one engine is present; on a
-# workstation with docker running and a kubeconfig loaded it is a coin toss, and
-# a coin toss is not what anyone wants before `restart`.
-m2d() { m2x --runtime docker "$@" }
-m2p() { m2x --runtime podman "$@" }
-m2k() { m2x --runtime kube   "$@" }
+# Clear the old entry points when re-sourcing an already loaded plugin.
+unfunction m2x m2p m2k 2>/dev/null
+m2d() { _m2x_dispatch --runtime docker "$@" }
+if (( $+commands[podman] )); then
+  m2p() { _m2x_dispatch --runtime podman "$@" }
+fi
+if (( $+commands[kubectl] )); then
+  m2k() { _m2x_dispatch --runtime kube "$@" }
+fi
+
+# Configuration remains available for assignments and $M2X_* expansion, but
+# does not compete with command names on `m2<TAB>`. Preserve existing filters.
+() {
+  local context=':completion:*:-command-:*:parameters'
+  local -a ignored
+  zstyle -a "$context" ignored-patterns ignored
+  (( ${ignored[(Ie)M2X_*]} )) || ignored+=('M2X_*')
+  zstyle "$context" ignored-patterns "${ignored[@]}"
+}
