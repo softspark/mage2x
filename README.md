@@ -3,7 +3,6 @@
 > Run commands inside a container workload, whatever runs it. Docker, Podman or
 > Kubernetes — one command, and it refuses to guess which container you meant.
 
-[![CI](https://github.com/softspark/mage2x/actions/workflows/ci.yml/badge.svg)](https://github.com/softspark/mage2x/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/@softspark/mage2x)](https://www.npmjs.com/package/@softspark/mage2x)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
@@ -75,7 +74,7 @@ curl -fsSL -o mage2x.plugin.zsh \
 
 Pin the tag rather than tracking a branch: the point of shipping a file is that
 the version is decided at deploy time, not at boot time. `dist/` is committed and
-CI fails when it lags the sources.
+the release gate fails when it lags the sources.
 
 ### From npm
 
@@ -224,7 +223,8 @@ lib/
   catalog.zsh         Magento shortcuts, layered over the adapters
 bin/
   mage2x-install.mjs  npm installer (Node, no dependencies)
-scripts/bundle.sh     builds dist/; --check is the CI drift gate
+scripts/bundle.sh     builds dist/; --check is the release drift gate
+scripts/release.sh    local gates, Linux run, tag and publish watch (npm run release)
 dist/
   mage2x.plugin.zsh   generated single-file build, committed
 tests/run.sh          suite, runs against a fake adapter — no engine required

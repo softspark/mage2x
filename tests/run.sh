@@ -2,7 +2,7 @@
 # mage2x test suite.
 #
 # Runs without docker, podman or a cluster: a fake runtime adapter stands in, so
-# CI exercises resolution, the production guard and the catalogue rather than
+# the suite exercises resolution, the production guard and the catalogue rather than
 # the container engines themselves. The adapters are thin by design; the logic
 # worth testing sits above them.
 set -uo pipefail

@@ -45,9 +45,10 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "lint": "shellcheck tests/run.sh scripts/bundle.sh",
+    "lint": "shellcheck tests/run.sh scripts/bundle.sh scripts/release.sh",
     "typecheck": "node --check bin/mage2x-install.mjs",
     "test": "./tests/run.sh",
-    "bundle": "./scripts/bundle.sh"
+    "bundle": "./scripts/bundle.sh",
+    "release": "scripts/release.sh"
   }
 }

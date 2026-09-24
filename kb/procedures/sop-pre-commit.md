@@ -6,7 +6,7 @@ service: mage2x
 tags: [sop, quality-gate, pre-commit, shellcheck, tests, adapters]
 version: "1.4.0"
 created: "2026-08-28"
-last_updated: "2026-09-06"
+last_updated: "2026-09-24"
 description: "Checks that must pass before every commit to mage2x, including the adapter-contract check that catches a half-written runtime."
 ---
 
@@ -14,8 +14,9 @@ description: "Checks that must pass before every commit to mage2x, including the
 
 ## Checklist
 
-- [ ] `shellcheck tests/run.sh` -- 0 findings
+- [ ] `npm run lint` (ShellCheck over `tests/run.sh` and `scripts/`) -- 0 findings
 - [ ] `node --check bin/mage2x-install.mjs` -- parses
+- [ ] `./scripts/bundle.sh --check` -- `dist/` matches the sources
 - [ ] `for f in mage2x.plugin.zsh _mage2x lib/*.zsh; do zsh -n "$f"; done` -- parse
 - [ ] `./tests/run.sh` -- all pass
 - [ ] Adapter contract complete (below)
@@ -26,11 +27,12 @@ description: "Checks that must pass before every commit to mage2x, including the
 ## Quick run
 
 ```bash
-shellcheck tests/run.sh \
-  && node --check bin/mage2x-install.mjs \
-  && for f in mage2x.plugin.zsh _mage2x lib/*.zsh; do zsh -n "$f" || break; done \
-  && ./tests/run.sh
+scripts/release.sh --gates-only
 ```
+
+The same gate `npm run release` runs before a tag, including the adapter
+contract below against both the checkout and `dist/`. Full output goes to
+`${TMPDIR:-/tmp}/mage2x-gates.log`.
 
 ## Adapter contract
 
@@ -48,7 +50,8 @@ zsh -c '
   done'
 ```
 
-CI runs the same check, but finding it locally costs seconds.
+No CI runs it any more; the release script is the last place it can catch a
+missing verb before a tag.
 
 ## Notes
 

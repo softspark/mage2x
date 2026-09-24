@@ -27,9 +27,11 @@ the bar for correctness is higher.
 characters, one logical change per commit. Never pass `--no-verify`; if a hook
 fails, fix the cause. Never add AI co-authorship trailers.
 
-## CI Requirements
+## Required Checks
 
-Maintainer procedures:
+There is no CI on pushes or pull requests: the gates run on your machine, and
+the maintainer's release script runs them again before any tag. Maintainer
+procedures:
 
 - [Pre-commit gate](../kb/procedures/sop-pre-commit.md)
 - [Release procedure](../kb/procedures/sop-release.md)
@@ -38,13 +40,12 @@ Maintainer procedures:
 Everything below must pass locally before you open a PR:
 
 ```bash
-shellcheck lib/guard.sh lib/pre-commit lib/pre-push tests/run.sh
-node --check bin/mage2x-install.mjs
-zsh -n mage2x.plugin.zsh && zsh -n _mage2x
-./tests/run.sh
+scripts/release.sh --gates-only
 ```
 
-The suite builds a throwaway `HOME` and never touches your real git config.
+That runs ShellCheck, the installer parse, the `dist/` drift check, `zsh -n` on
+every zsh source, the adapter contract and `./tests/run.sh`. The suite uses a
+fake adapter and needs no container engine.
 
 ## Coding Standards
 
